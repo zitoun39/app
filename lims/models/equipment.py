@@ -1,13 +1,11 @@
 # Equipment Model - نموذج الأجهزة
 # Laboratory equipment and calibration management
 
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 from enum import Enum
 import json
 
-# Import shared db instance from __init__.py
-from . import db
+from extensions import db
 
 class EquipmentStatus(Enum):
     """حالات الجهاز"""

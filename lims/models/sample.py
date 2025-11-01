@@ -1,13 +1,11 @@
 # Sample Model - نموذج العينة
 # Water sample management model
 
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date
 from enum import Enum
 import re
 
-# Import shared db instance from __init__.py
-from . import db
+from extensions import db
 
 class SampleStatus(Enum):
     """حالات العينة"""

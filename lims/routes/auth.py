@@ -7,31 +7,25 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta
 import re
 
+from extensions import db
+
 from ..models import User, UserRole
+from ..utils.helpers import get_client_ip
 
-# Import db to avoid circular imports
-try:
-    from app import db
-except ImportError:
-    from flask_sqlalchemy import SQLAlchemy
-    db = SQLAlchemy()
 
-# Placeholder functions for utils (will implement basic versions)
 def validate_password_strength(password):
-    """Basic password validation"""
     return {
-        'valid': len(password) >= 8,
-        'message': 'كلمة مرور ضعيفة - يجب أن تكون 8 أحرف على الأقل'
+        "valid": len(password) >= 8 and any(ch.isdigit() for ch in password),
+        "message": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل وتحتوي على رقم واحد على الأقل",
     }
 
-def log_security_event(event_type, user_id, ip_address, details=None):
-    """Basic security event logging"""
-    print(f"Security Event: {event_type}, User: {user_id}, IP: {ip_address}")
 
-def get_client_ip():
-    """Get client IP address"""
-    from flask import request
-    return request.remote_addr or 'unknown'
+def log_security_event(event_type, user_id, ip_address, details=None):
+    details = details or {}
+    print(
+        f"SECURITY event={event_type} user={user_id} ip={ip_address} details={details}",
+        flush=True,
+    )
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 

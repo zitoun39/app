@@ -1,13 +1,11 @@
 # Result Model - نموذج النتائج
 # Laboratory test results model
 
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from enum import Enum
 import json
 
-# Import shared db instance from __init__.py
-from . import db
+from extensions import db
 
 class ResultStatus(Enum):
     """حالات النتيجة"""
