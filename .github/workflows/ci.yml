@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 bandit safety
+      - name: Lint
+        run: flake8 app/extensions.py app/archive/services app/lims/utils app/tests
+      - name: Run tests
+        env:
+          SECRET_KEY: ci-secret-key
+        run: pytest
+      - name: Security scan (bandit)
+        run: bandit -r app -lll
+      - name: Dependency security (safety)
+        continue-on-error: true
+        run: safety check --full-report
