@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}النتائج - جودتي{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">لوحة التحكم</a></li>
+        <li class="breadcrumb-item active">النتائج</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">إدارة النتائج</h1>
+    <a href="{{ url_for('results.add_result') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>
+        إضافة نتيجة جديدة
+    </a>
+</div>
+
+<!-- Filters Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="fas fa-filter me-2"></i>
+            البحث والتصفية
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('results.index') }}" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">البحث</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ request.args.get('search', '') }}" 
+                       placeholder="رقم العينة، المعيار، أو الملاحظات">
+            </div>
+            
+            <div class="col-md-2">
+                <label for="status" class="form-label">الحالة</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">جميع الحالات</option>
+                    {% for status in ResultStatus %}
+                    <option value="{{ status.value }}" 
+                            {{ 'selected' if request.args.get('status') == status.value }}>
+                        {{ status.value }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="parameter" class="form-label">المعيار</label>
+                <select class="form-select" id="parameter" name="parameter">
+                    <option value="">جميع المعايير</option>
+                    {% for parameter in parameters %}
+                    <option value="{{ parameter.id }}" 
+                            {{ 'selected' if request.args.get('parameter') == parameter.id|string }}>
+                        {{ parameter.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="conformity" class="form-label">المطابقة</label>
+                <select class="form-select" id="conformity" name="conformity">
+                    <option value="">الكل</option>
+                    <option value="true" {{ 'selected' if request.args.get('conformity') == 'true' }}>مطابق</option>
+                    <option value="false" {{ 'selected' if request.args.get('conformity') == 'false' }}>غير مطابق</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">من تاريخ</label>
+                <input type="date" class="form-control" id="date_from" name="date_from" 
+                       value="{{ request.args.get('date_from', '') }}">
+            </div>
+            
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-search"></i>
+                </button>
+                <a href="{{ url_for('results.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">إجمالي النتائج</h6>
+                        <h3 class="mb-0">{{ pagination.total }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-flask fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">معلقة</h6>
+                        <h3 class="mb-0">{{ stats.pending }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">معتمدة</h6>
+                        <h3 class="mb-0">{{ stats.validated }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">غير مطابقة</h6>
+                        <h3 class="mb-0">{{ stats.non_conforming }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Results Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">قائمة النتائج</h6>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="exportResults()">
+                <i class="fas fa-download me-1"></i>
+                تصدير
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="printResults()">
+                <i class="fas fa-print me-1"></i>
+                طباعة
+            </button>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if results %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>رقم العينة</th>
+                        <th>المعيار</th>
+                        <th>النتيجة</th>
+                        <th>الوحدة</th>
+                        <th>الحد الأدنى</th>
+                        <th>الحد الأعلى</th>
+                        <th>المطابقة</th>
+                        <th>الحالة</th>
+                        <th>المحلل</th>
+                        <th>تاريخ التحليل</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in results %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('samples.view', id=result.sample.id) }}" class="text-decoration-none fw-bold">
+                                {{ result.sample.sample_id }}
+                            </a>
+                        </td>
+                        <td>{{ result.parameter.name }}</td>
+                        <td>
+                            {% if result.value is not none %}
+                                <span class="fw-bold">
+                                    {{ "%.3f"|format(result.value) if result.value != result.value|int else result.value|int }}
+                                </span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ result.parameter.unit or '-' }}</td>
+                        <td>{{ result.parameter.min_value if result.parameter.min_value is not none else '-' }}</td>
+                        <td>{{ result.parameter.max_value if result.parameter.max_value is not none else '-' }}</td>
+                        <td>
+                            {% if result.conformity is not none %}
+                                <span class="badge {{ 'bg-success' if result.conformity else 'bg-danger' }}">
+                                    {{ 'مطابق' if result.conformity else 'غير مطابق' }}
+                                </span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ result.status.value }}">
+                                {{ result.status.value }}
+                            </span>
+                        </td>
+                        <td>{{ result.analyst.full_name if result.analyst else '-' }}</td>
+                        <td>{{ result.analysis_date.strftime('%Y/%m/%d') if result.analysis_date else '-' }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('results.view', id=result.id) }}" 
+                                   class="btn btn-outline-primary" title="عرض">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                
+                                {% if result.status.value == 'pending' and current_user.role in ['ADMIN', 'SUPERVISOR', 'ANALYST'] %}
+                                <a href="{{ url_for('results.edit', id=result.id) }}" 
+                                   class="btn btn-outline-warning" title="تعديل">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                                
+                                {% if result.status.value == 'pending' and current_user.role in ['ADMIN', 'SUPERVISOR'] %}
+                                <form method="POST" action="{{ url_for('results.validate', id=result.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('هل تريد اعتماد هذه النتيجة؟')">
+                                    <button type="submit" class="btn btn-outline-success" title="اعتماد">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                
+                                {% if result.status.value == 'validated' and current_user.role in ['ADMIN', 'SUPERVISOR'] %}
+                                <form method="POST" action="{{ url_for('results.reject', id=result.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('هل تريد رفض هذه النتيجة؟')">
+                                    <button type="submit" class="btn btn-outline-danger" title="رفض">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" 
+                                            data-bs-toggle="dropdown" title="المزيد">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('results.duplicate_result', id=result.id) }}">
+                                                <i class="fas fa-copy me-2"></i>نسخ النتيجة
+                                            </a>
+                                        </li>
+                                        {% if result.status.value == 'pending' and current_user.role in ['ADMIN', 'SUPERVISOR', 'ANALYST'] %}
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('results.add_replicate', id=result.id) }}">
+                                                <i class="fas fa-plus me-2"></i>إضافة تكرار
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        {% if current_user.role in ['ADMIN', 'SUPERVISOR'] %}
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('results.add_flag', id=result.id) }}">
+                                                <i class="fas fa-flag me-2"></i>إضافة علامة جودة
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+        <div class="card-footer">
+            <nav aria-label="Results pagination">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('results.index', page=pagination.prev_num, **request.args) }}">
+                            السابق
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('results.index', page=page_num, **request.args) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('results.index', page=pagination.next_num, **request.args) }}">
+                            التالي
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-flask fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">لا توجد نتائج</h5>
+            <p class="text-muted">لم يتم العثور على نتائج تطابق معايير البحث</p>
+            <a href="{{ url_for('results.add_result') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>
+                إضافة نتيجة جديدة
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportResults() {
+    // Create export URL with current filters
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', 'excel');
+    window.location.href = '{{ url_for("results.index") }}?' + params.toString();
+}
+
+function printResults() {
+    window.print();
+}
+
+// Auto-submit form on filter change
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.querySelector('form');
+    const selects = filterForm.querySelectorAll('select');
+    
+    selects.forEach(select => {
+        select.addEventListener('change', function() {
+            filterForm.submit();
+        });
+    });
+    
+    // Highlight non-conforming results
+    const nonConformingRows = document.querySelectorAll('tr');
+    nonConformingRows.forEach(row => {
+        const conformityBadge = row.querySelector('.badge.bg-danger');
+        if (conformityBadge) {
+            row.classList.add('table-danger');
+        }
+    });
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-pending { background-color: #ffc107; color: #000; }
+.status-validated { background-color: #28a745; color: #fff; }
+.status-rejected { background-color: #dc3545; color: #fff; }
+
+.table-danger {
+    --bs-table-bg: rgba(220, 53, 69, 0.1);
+}
+</style>
+{% endblock %}

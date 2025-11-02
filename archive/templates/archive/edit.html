@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+{% block title %}تعديل {{ document.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">لوحة التحكم</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('archive.index') }}">الأرشيف الإلكتروني</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('archive.view', id=document.id) }}">{{ document.title }}</a></li>
+            <li class="breadcrumb-item active">تعديل</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-edit"></i> تعديل المستند</h2>
+            <p class="text-muted mb-0">تعديل معلومات وخصائص المستند</p>
+        </div>
+        <div>
+            <a href="{{ url_for('archive.view', id=document.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right"></i> العودة
+            </a>
+        </div>
+    </div>
+
+    <form method="POST" id="editForm">
+        <div class="row">
+            <!-- Main Form -->
+            <div class="col-md-8">
+                <!-- Basic Information -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-info-circle"></i> المعلومات الأساسية</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="title" class="required">عنوان المستند</label>
+                                    <input type="text" class="form-control" id="title" name="title" 
+                                           value="{{ document.title }}" required maxlength="200">
+                                    <small class="form-text text-muted">عنوان وصفي للمستند</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="document_type" class="required">نوع المستند</label>
+                                    <select class="form-control" id="document_type" name="document_type" required>
+                                        <option value="">اختر نوع المستند</option>
+                                        <option value="تقرير" {{ 'selected' if document.document_type == 'تقرير' }}>تقرير</option>
+                                        <option value="شهادة" {{ 'selected' if document.document_type == 'شهادة' }}>شهادة</option>
+                                        <option value="مراسلة" {{ 'selected' if document.document_type == 'مراسلة' }}>مراسلة</option>
+                                        <option value="عقد" {{ 'selected' if document.document_type == 'عقد' }}>عقد</option>
+                                        <option value="فاتورة" {{ 'selected' if document.document_type == 'فاتورة' }}>فاتورة</option>
+                                        <option value="إجراء" {{ 'selected' if document.document_type == 'إجراء' }}>إجراء تشغيلي</option>
+                                        <option value="دليل" {{ 'selected' if document.document_type == 'دليل' }}>دليل</option>
+                                        <option value="أخرى" {{ 'selected' if document.document_type == 'أخرى' }}>أخرى</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="description">الوصف</label>
+                            <textarea class="form-control" id="description" name="description" 
+                                      rows="3" maxlength="1000">{{ document.description or '' }}</textarea>
+                            <small class="form-text text-muted">وصف مختصر لمحتوى المستند</small>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="category_id">الفئة</label>
+                                    <select class="form-control" id="category_id" name="category_id">
+                                        <option value="">بدون فئة</option>
+                                        {% for category in categories %}
+                                        <option value="{{ category.id }}" 
+                                                {{ 'selected' if document.category_id == category.id }}
+                                                data-color="{{ category.color }}" 
+                                                data-icon="{{ category.icon }}">
+                                            {{ category.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="tags">العلامات</label>
+                                    <input type="text" class="form-control" id="tags" name="tags" 
+                                           value="{{ document.tags or '' }}" 
+                                           placeholder="علامة1, علامة2, علامة3">
+                                    <small class="form-text text-muted">افصل العلامات بفاصلة</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security & Access -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-shield-alt"></i> الأمان والوصول</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="access_level" class="required">مستوى الوصول</label>
+                                    <select class="form-control" id="access_level" name="access_level" required>
+                                        <option value="public" {{ 'selected' if document.access_level == 'public' }}>
+                                            <i class="fas fa-globe"></i> عام - يمكن لجميع المستخدمين الوصول
+                                        </option>
+                                        <option value="internal" {{ 'selected' if document.access_level == 'internal' }}>
+                                            <i class="fas fa-building"></i> داخلي - المستخدمون المسجلون فقط
+                                        </option>
+                                        <option value="restricted" {{ 'selected' if document.access_level == 'restricted' }}>
+                                            <i class="fas fa-lock"></i> مقيد - مستخدمون محددون فقط
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <div class="form-check mt-4">
+                                        <input class="form-check-input" type="checkbox" id="is_confidential" 
+                                               name="is_confidential" {{ 'checked' if document.is_confidential }}>
+                                        <label class="form-check-label" for="is_confidential">
+                                            <i class="fas fa-user-secret"></i> مستند سري
+                                        </label>
+                                        <small class="form-text text-muted d-block">سيظهر تحذير السرية للمستخدمين</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OCR Settings -->
+                {% if document.file_name.lower().endswith(('.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.bmp')) %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-eye"></i> إعدادات OCR</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="ocr_language">لغة OCR</label>
+                                    <select class="form-control" id="ocr_language" name="ocr_language">
+                                        <option value="ara" {{ 'selected' if document.ocr_language == 'ara' }}>العربية</option>
+                                        <option value="eng" {{ 'selected' if document.ocr_language == 'eng' }}>الإنجليزية</option>
+                                        <option value="ara+eng" {{ 'selected' if document.ocr_language == 'ara+eng' }}>العربية + الإنجليزية</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <div class="form-check mt-4">
+                                        <input class="form-check-input" type="checkbox" id="reprocess_ocr" name="reprocess_ocr">
+                                        <label class="form-check-label" for="reprocess_ocr">
+                                            <i class="fas fa-redo"></i> إعادة معالجة OCR
+                                        </label>
+                                        <small class="form-text text-muted d-block">سيتم إعادة استخراج النص من المستند</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if document.ocr_processed %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>حالة OCR الحالية:</strong> 
+                            تم المعالجة بنسبة ثقة {{ document.ocr_confidence }}% 
+                            ({{ (document.ocr_text|length if document.ocr_text else 0) }} حرف مستخرج)
+                        </div>
+                        {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>تنبيه:</strong> لم يتم معالجة هذا المستند بـ OCR بعد
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-md-4">
+                <!-- File Information -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-file"></i> معلومات الملف</h6>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-borderless table-sm">
+                            <tr>
+                                <td><strong>اسم الملف:</strong></td>
+                                <td><code>{{ document.file_name }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>الحجم:</strong></td>
+                                <td>{{ (document.file_size / 1024 / 1024)|round(2) }} MB</td>
+                            </tr>
+                            <tr>
+                                <td><strong>النوع:</strong></td>
+                                <td><code>{{ document.mime_type }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>تاريخ الرفع:</strong></td>
+                                <td>{{ document.created_at.strftime('%Y-%m-%d') }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>آخر تحديث:</strong></td>
+                                <td>{{ document.updated_at.strftime('%Y-%m-%d') }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-cogs"></i> الإجراءات</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-block" id="saveBtn">
+                                <i class="fas fa-save"></i> حفظ التغييرات
+                            </button>
+                            
+                            <a href="{{ url_for('archive.view', id=document.id) }}" class="btn btn-outline-secondary btn-block">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                            
+                            <hr>
+                            
+                            <a href="{{ url_for('archive.download', id=document.id) }}" class="btn btn-outline-info btn-block">
+                                <i class="fas fa-download"></i> تحميل الملف
+                            </a>
+                            
+                            {% if current_user.has_role('admin') or document.uploaded_by == current_user.id %}
+                            <button type="button" class="btn btn-outline-danger btn-block" onclick="confirmDelete()">
+                                <i class="fas fa-trash"></i> حذف المستند
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-question-circle"></i> مساعدة</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="small text-muted">
+                            <p><strong>مستويات الوصول:</strong></p>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-globe text-success"></i> <strong>عام:</strong> جميع المستخدمين</li>
+                                <li><i class="fas fa-building text-warning"></i> <strong>داخلي:</strong> المسجلون فقط</li>
+                                <li><i class="fas fa-lock text-danger"></i> <strong>مقيد:</strong> مستخدمون محددون</li>
+                            </ul>
+                            
+                            <p><strong>العلامات:</strong></p>
+                            <p>استخدم العلامات لتسهيل البحث والتصنيف. افصل العلامات بفاصلة.</p>
+                            
+                            <p><strong>OCR:</strong></p>
+                            <p>يمكن إعادة معالجة OCR إذا لم تكن النتائج مرضية.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تأكيد الحذف</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>هل أنت متأكد من حذف المستند "{{ document.title }}"؟</p>
+                <p class="text-danger"><strong>تحذير:</strong> سيتم حذف جميع الإصدارات والبيانات المرتبطة نهائياً.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                <form method="POST" action="{{ url_for('archive.delete', id=document.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">حذف نهائياً</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Processing Modal -->
+<div class="modal fade" id="processingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+                <h5>جاري حفظ التغييرات...</h5>
+                <p class="text-muted">يرجى الانتظار</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.required::after {
+    content: " *";
+    color: #dc3545;
+}
+
+.table-borderless td {
+    border: none;
+    padding: 0.25rem 0.5rem;
+}
+
+.table-borderless td:first-child {
+    font-weight: 500;
+    width: 40%;
+}
+
+.form-check-label {
+    font-weight: 500;
+}
+
+.alert {
+    border-radius: 8px;
+}
+
+.card {
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-block {
+    margin-bottom: 0.5rem;
+}
+
+#category_id option[data-color] {
+    font-weight: 500;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Form validation and submission
+$('#editForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    // Validate required fields
+    let isValid = true;
+    $('.form-control[required]').each(function() {
+        if (!$(this).val().trim()) {
+            $(this).addClass('is-invalid');
+            isValid = false;
+        } else {
+            $(this).removeClass('is-invalid');
+        }
+    });
+    
+    if (!isValid) {
+        alert('يرجى ملء جميع الحقول المطلوبة');
+        return;
+    }
+    
+    // Show processing modal
+    $('#processingModal').modal('show');
+    
+    // Submit form
+    this.submit();
+});
+
+// Real-time validation
+$('.form-control[required]').on('input', function() {
+    if ($(this).val().trim()) {
+        $(this).removeClass('is-invalid');
+    }
+});
+
+// Auto-generate tags based on title and type
+$('#title, #document_type').on('change', function() {
+    if (!$('#tags').val()) {
+        let tags = [];
+        let title = $('#title').val();
+        let type = $('#document_type').val();
+        
+        if (type) tags.push(type);
+        
+        // Extract keywords from title
+        if (title) {
+            let words = title.split(' ').filter(word => word.length > 3);
+            tags = tags.concat(words.slice(0, 3));
+        }
+        
+        $('#tags').val(tags.join(', '));
+    }
+});
+
+// Category selection with color preview
+$('#category_id').on('change', function() {
+    let selected = $(this).find('option:selected');
+    let color = selected.data('color');
+    let icon = selected.data('icon');
+    
+    if (color) {
+        $(this).css('border-left', '4px solid ' + color);
+    } else {
+        $(this).css('border-left', 'none');
+    }
+});
+
+// Initialize category color
+$('#category_id').trigger('change');
+
+// Access level change handler
+$('#access_level').on('change', function() {
+    let level = $(this).val();
+    let confidentialCheck = $('#is_confidential');
+    
+    if (level === 'public') {
+        confidentialCheck.prop('checked', false);
+        confidentialCheck.prop('disabled', true);
+    } else {
+        confidentialCheck.prop('disabled', false);
+    }
+});
+
+// Initialize access level
+$('#access_level').trigger('change');
+
+// OCR reprocess warning
+$('#reprocess_ocr').on('change', function() {
+    if ($(this).is(':checked')) {
+        if (!confirm('إعادة معالجة OCR قد تستغرق وقتاً طويلاً. هل تريد المتابعة؟')) {
+            $(this).prop('checked', false);
+        }
+    }
+});
+
+// Delete confirmation
+function confirmDelete() {
+    $('#deleteModal').modal('show');
+}
+
+// Track form changes
+let originalFormData = $('#editForm').serialize();
+
+$(window).on('beforeunload', function(e) {
+    let currentFormData = $('#editForm').serialize();
+    if (originalFormData !== currentFormData) {
+        e.preventDefault();
+        return 'لديك تغييرات غير محفوظة. هل تريد المغادرة؟';
+    }
+});
+
+// Remove beforeunload when form is submitted
+$('#editForm').on('submit', function() {
+    $(window).off('beforeunload');
+});
+</script>
+{% endblock %}

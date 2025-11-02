@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% block title %}الأرشيف الإلكتروني{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">لوحة التحكم</a></li>
+            <li class="breadcrumb-item active">الأرشيف الإلكتروني</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-archive"></i> الأرشيف الإلكتروني</h2>
+        <div>
+            <a href="{{ url_for('archive.upload') }}" class="btn btn-primary">
+                <i class="fas fa-upload"></i> رفع مستند
+            </a>
+            <a href="{{ url_for('archive.categories') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-tags"></i> إدارة الفئات
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ stats.total_documents }}</h4>
+                            <p class="mb-0">إجمالي المستندات</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-file-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ stats.total_categories }}</h4>
+                            <p class="mb-0">الفئات</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-tags fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ stats.ocr_processed }}</h4>
+                            <p class="mb-0">معالج بـ OCR</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-eye fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ stats.storage_stats.total_size_mb }} MB</h4>
+                            <p class="mb-0">مساحة التخزين</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-hdd fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-filter"></i> البحث والفلترة</h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('archive.index') }}">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="search">البحث</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ search }}" placeholder="البحث في العنوان، الوصف، أو النص...">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="category">الفئة</label>
+                            <select class="form-control" id="category" name="category">
+                                <option value="">جميع الفئات</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" 
+                                        {% if selected_category == category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="type">نوع المستند</label>
+                            <select class="form-control" id="type" name="type">
+                                <option value="">جميع الأنواع</option>
+                                <option value="report" {% if selected_type == 'report' %}selected{% endif %}>تقرير</option>
+                                <option value="certificate" {% if selected_type == 'certificate' %}selected{% endif %}>شهادة</option>
+                                <option value="invoice" {% if selected_type == 'invoice' %}selected{% endif %}>فاتورة</option>
+                                <option value="contract" {% if selected_type == 'contract' %}selected{% endif %}>عقد</option>
+                                <option value="other" {% if selected_type == 'other' %}selected{% endif %}>أخرى</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label>&nbsp;</label>
+                            <div>
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-search"></i> بحث
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Documents List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">المستندات ({{ documents.total }} مستند)</h5>
+        </div>
+        <div class="card-body">
+            {% if documents.items %}
+            <div class="row">
+                {% for document in documents.items %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 document-card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                {% if document.category %}
+                                <span class="badge" style="background-color: {{ document.category.color }}">
+                                    {% if document.category.icon %}
+                                    <i class="{{ document.category.icon }}"></i>
+                                    {% endif %}
+                                    {{ document.category.name }}
+                                </span>
+                                {% endif %}
+                                {% if document.is_confidential %}
+                                <span class="badge badge-danger ml-2">
+                                    <i class="fas fa-lock"></i> سري
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                        type="button" data-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-right">
+                                    <a class="dropdown-item" href="{{ url_for('archive.view', id=document.id) }}">
+                                        <i class="fas fa-eye"></i> عرض
+                                    </a>
+                                    <a class="dropdown-item" href="{{ url_for('archive.download', id=document.id) }}">
+                                        <i class="fas fa-download"></i> تحميل
+                                    </a>
+                                    {% if current_user.has_role('admin') or document.uploaded_by == current_user.id %}
+                                    <div class="dropdown-divider"></div>
+                                    <a class="dropdown-item" href="{{ url_for('archive.edit', id=document.id) }}">
+                                        <i class="fas fa-edit"></i> تعديل
+                                    </a>
+                                    <a class="dropdown-item text-danger" href="#" 
+                                       onclick="confirmDelete({{ document.id }}, '{{ document.title }}')">
+                                        <i class="fas fa-trash"></i> حذف
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <a href="{{ url_for('archive.view', id=document.id) }}" class="text-decoration-none">
+                                    {{ document.title }}
+                                </a>
+                            </h6>
+                            {% if document.description %}
+                            <p class="card-text text-muted small">{{ document.description[:100] }}{% if document.description|length > 100 %}...{% endif %}</p>
+                            {% endif %}
+                            <div class="row text-muted small">
+                                <div class="col-6">
+                                    <i class="fas fa-file"></i> {{ document.document_type }}
+                                </div>
+                                <div class="col-6 text-right">
+                                    <i class="fas fa-weight"></i> {{ (document.file_size / 1024 / 1024)|round(2) }} MB
+                                </div>
+                            </div>
+                            {% if document.ocr_processed %}
+                            <div class="mt-2">
+                                <span class="badge badge-success">
+                                    <i class="fas fa-eye"></i> OCR ({{ document.ocr_confidence }}%)
+                                </span>
+                            </div>
+                            {% endif %}
+                            {% if document.tags %}
+                            <div class="mt-2">
+                                {% for tag in document.tags.split(',') %}
+                                <span class="badge badge-light">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer text-muted small">
+                            <div class="d-flex justify-content-between">
+                                <span>
+                                    <i class="fas fa-user"></i> 
+                                    {% if document.uploaded_by == current_user.id %}
+                                    أنت
+                                    {% else %}
+                                    مستخدم {{ document.uploaded_by }}
+                                    {% endif %}
+                                </span>
+                                <span>
+                                    <i class="fas fa-calendar"></i> 
+                                    {{ document.created_at.strftime('%Y-%m-%d') }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if documents.pages > 1 %}
+            <nav aria-label="تصفح المستندات">
+                <ul class="pagination justify-content-center">
+                    {% if documents.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('archive.index', page=documents.prev_num, search=search, category=selected_category, type=selected_type) }}">
+                            السابق
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in documents.iter_pages() %}
+                    {% if page_num %}
+                    {% if page_num != documents.page %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('archive.index', page=page_num, search=search, category=selected_category, type=selected_type) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_num }}</span>
+                    </li>
+                    {% endif %}
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if documents.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('archive.index', page=documents.next_num, search=search, category=selected_category, type=selected_type) }}">
+                            التالي
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">لا توجد مستندات</h5>
+                <p class="text-muted">ابدأ برفع مستندك الأول</p>
+                <a href="{{ url_for('archive.upload') }}" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> رفع مستند
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تأكيد الحذف</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>هل أنت متأكد من حذف المستند "<span id="documentTitle"></span>"؟</p>
+                <p class="text-danger"><strong>تحذير:</strong> هذا الإجراء لا يمكن التراجع عنه.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">حذف</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.document-card {
+    transition: transform 0.2s;
+}
+
+.document-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(documentId, documentTitle) {
+    document.getElementById('documentTitle').textContent = documentTitle;
+    document.getElementById('deleteForm').action = '/archive/document/' + documentId + '/delete';
+    $('#deleteModal').modal('show');
+}
+
+// Auto-submit form on filter change
+$(document).ready(function() {
+    $('#category, #type').change(function() {
+        $(this).closest('form').submit();
+    });
+});
+</script>
+{% endblock %}

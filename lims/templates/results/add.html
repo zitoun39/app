@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+
+{% block title %}إضافة نتيجة جديدة - جودتي{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">لوحة التحكم</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('results.index') }}">النتائج</a></li>
+        {% if sample %}
+        <li class="breadcrumb-item"><a href="{{ url_for('samples.view', id=sample.id) }}">{{ sample.sample_id }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active">إضافة نتيجة</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>
+                    إضافة نتيجة جديدة
+                    {% if sample %}
+                    <small class="text-muted">- عينة {{ sample.sample_id }}</small>
+                    {% endif %}
+                </h5>
+            </div>
+            
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('results.add_result') }}" id="resultForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <!-- Sample Selection -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.sample_id.label(class="form-label") }}
+                            {{ form.sample_id(class="form-select" + (" is-invalid" if form.sample_id.errors else ""), 
+                                              onchange="loadSampleParameters()") }}
+                            {% if form.sample_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.sample_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Parameter Selection -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.parameter_id.label(class="form-label") }}
+                            {{ form.parameter_id(class="form-select" + (" is-invalid" if form.parameter_id.errors else ""), 
+                                                 onchange="updateParameterInfo()") }}
+                            {% if form.parameter_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.parameter_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Parameter Information -->
+                    <div class="card mb-3" id="parameter-info" style="display: none;">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                معلومات المعيار
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <strong>الوحدة:</strong>
+                                    <span id="param-unit">-</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>الحد الأدنى:</strong>
+                                    <span id="param-min">-</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>الحد الأعلى:</strong>
+                                    <span id="param-max">-</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>طريقة التحليل:</strong>
+                                    <span id="param-method">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Result Value -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.value.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.value(class="form-control" + (" is-invalid" if form.value.errors else ""), 
+                                             step="0.001", onchange="checkConformity()") }}
+                                <span class="input-group-text" id="value-unit">-</span>
+                            </div>
+                            {% if form.value.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.value.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Analysis Date -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.analysis_date.label(class="form-label") }}
+                            {{ form.analysis_date(class="form-control" + (" is-invalid" if form.analysis_date.errors else "")) }}
+                            {% if form.analysis_date.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.analysis_date.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Analysis Time -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.analysis_time.label(class="form-label") }}
+                            {{ form.analysis_time(class="form-control" + (" is-invalid" if form.analysis_time.errors else "")) }}
+                            {% if form.analysis_time.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.analysis_time.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Equipment -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.equipment_id.label(class="form-label") }}
+                            {{ form.equipment_id(class="form-select" + (" is-invalid" if form.equipment_id.errors else "")) }}
+                            {% if form.equipment_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.equipment_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Conformity Check -->
+                    <div class="card mb-3" id="conformity-check" style="display: none;">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-check-circle me-2"></i>
+                                فحص المطابقة
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div id="conformity-message" class="alert mb-0" role="alert">
+                                        <!-- Conformity message will be displayed here -->
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <span class="badge fs-6" id="conformity-badge">
+                                        <!-- Conformity status will be displayed here -->
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quality Control -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-shield-alt me-2"></i>
+                                ضمان الجودة
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    {{ form.dilution_factor.label(class="form-label") }}
+                                    {{ form.dilution_factor(class="form-control" + (" is-invalid" if form.dilution_factor.errors else ""), 
+                                                           step="0.1", min="0.1", value="1.0") }}
+                                    {% if form.dilution_factor.errors %}
+                                        <div class="invalid-feedback">
+                                            {{ form.dilution_factor.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    {{ form.detection_limit.label(class="form-label") }}
+                                    {{ form.detection_limit(class="form-control" + (" is-invalid" if form.detection_limit.errors else ""), 
+                                                           step="0.001") }}
+                                    {% if form.detection_limit.errors %}
+                                        <div class="invalid-feedback">
+                                            {{ form.detection_limit.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    {{ form.uncertainty.label(class="form-label") }}
+                                    <div class="input-group">
+                                        {{ form.uncertainty(class="form-control" + (" is-invalid" if form.uncertainty.errors else ""), 
+                                                          step="0.01") }}
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    {% if form.uncertainty.errors %}
+                                        <div class="invalid-feedback">
+                                            {{ form.uncertainty.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">علامات الجودة</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="quality_flags" 
+                                               value="outlier" id="flag_outlier">
+                                        <label class="form-check-label" for="flag_outlier">
+                                            قيمة شاذة
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="quality_flags" 
+                                               value="below_detection" id="flag_below_detection">
+                                        <label class="form-check-label" for="flag_below_detection">
+                                            أقل من حد الكشف
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else ""), rows="3") }}
+                        {% if form.notes.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.notes.errors[0] }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('results.index') if not sample else url_for('samples.view', id=sample.id) }}" 
+                           class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            إلغاء
+                        </a>
+                        
+                        <div>
+                            <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-save me-2"></i>
+                                حفظ كمسودة
+                            </button>
+                            <button type="submit" name="action" value="save_and_validate" class="btn btn-primary">
+                                <i class="fas fa-check me-2"></i>
+                                حفظ واعتماد
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-fill current date and time
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentTime = now.toTimeString().split(' ')[0].substring(0, 5);
+    
+    // Set default analysis date and time to now
+    const analysisDate = document.getElementById('analysis_date');
+    const analysisTime = document.getElementById('analysis_time');
+    
+    if (!analysisDate.value) {
+        analysisDate.value = today;
+    }
+    if (!analysisTime.value) {
+        analysisTime.value = currentTime;
+    }
+    
+    // Load parameters if sample is pre-selected
+    const sampleSelect = document.getElementById('sample_id');
+    if (sampleSelect.value) {
+        loadSampleParameters();
+    }
+    
+    // Update parameter info if parameter is pre-selected
+    const parameterSelect = document.getElementById('parameter_id');
+    if (parameterSelect.value) {
+        updateParameterInfo();
+    }
+});
+
+// Load parameters for selected sample
+function loadSampleParameters() {
+    const sampleId = document.getElementById('sample_id').value;
+    const parameterSelect = document.getElementById('parameter_id');
+    
+    if (!sampleId) {
+        parameterSelect.innerHTML = '<option value="">اختر المعيار</option>';
+        return;
+    }
+    
+    // Show loading
+    parameterSelect.innerHTML = '<option value="">جاري التحميل...</option>';
+    
+    // Fetch parameters for this sample
+    fetch(`/api/samples/${sampleId}/parameters`)
+        .then(response => response.json())
+        .then(data => {
+            let html = '<option value="">اختر المعيار</option>';
+            if (data.parameters && data.parameters.length > 0) {
+                data.parameters.forEach(param => {
+                    html += `<option value="${param.id}">${param.name} (${param.unit || 'بدون وحدة'})</option>`;
+                });
+            }
+            parameterSelect.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading parameters:', error);
+            parameterSelect.innerHTML = '<option value="">خطأ في التحميل</option>';
+        });
+}
+
+// Update parameter information
+function updateParameterInfo() {
+    const parameterId = document.getElementById('parameter_id').value;
+    const parameterInfo = document.getElementById('parameter-info');
+    
+    if (!parameterId) {
+        parameterInfo.style.display = 'none';
+        return;
+    }
+    
+    // Fetch parameter details
+    fetch(`/api/parameters/${parameterId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('param-unit').textContent = data.unit || '-';
+            document.getElementById('param-min').textContent = data.min_value !== null ? data.min_value : '-';
+            document.getElementById('param-max').textContent = data.max_value !== null ? data.max_value : '-';
+            document.getElementById('param-method').textContent = data.method || '-';
+            document.getElementById('value-unit').textContent = data.unit || '-';
+            
+            parameterInfo.style.display = 'block';
+            
+            // Store parameter limits for conformity check
+            window.parameterLimits = {
+                min: data.min_value,
+                max: data.max_value,
+                unit: data.unit
+            };
+            
+            // Check conformity if value is already entered
+            checkConformity();
+        })
+        .catch(error => {
+            console.error('Error loading parameter details:', error);
+        });
+}
+
+// Check conformity based on parameter limits
+function checkConformity() {
+    const value = parseFloat(document.getElementById('value').value);
+    const conformityCheck = document.getElementById('conformity-check');
+    const conformityMessage = document.getElementById('conformity-message');
+    const conformityBadge = document.getElementById('conformity-badge');
+    
+    if (!value || !window.parameterLimits) {
+        conformityCheck.style.display = 'none';
+        return;
+    }
+    
+    const { min, max } = window.parameterLimits;
+    let isConforming = true;
+    let message = '';
+    
+    if (min !== null && value < min) {
+        isConforming = false;
+        message = `القيمة أقل من الحد الأدنى المسموح (${min})`;
+    } else if (max !== null && value > max) {
+        isConforming = false;
+        message = `القيمة أعلى من الحد الأعلى المسموح (${max})`;
+    } else {
+        message = 'القيمة ضمن الحدود المسموحة';
+    }
+    
+    // Update UI
+    conformityMessage.className = `alert mb-0 ${isConforming ? 'alert-success' : 'alert-danger'}`;
+    conformityMessage.textContent = message;
+    
+    conformityBadge.className = `badge fs-6 ${isConforming ? 'bg-success' : 'bg-danger'}`;
+    conformityBadge.textContent = isConforming ? 'مطابق' : 'غير مطابق';
+    
+    conformityCheck.style.display = 'block';
+}
+
+// Form validation
+document.getElementById('resultForm').addEventListener('submit', function(e) {
+    const value = document.getElementById('value').value;
+    const sampleId = document.getElementById('sample_id').value;
+    const parameterId = document.getElementById('parameter_id').value;
+    
+    if (!value) {
+        e.preventDefault();
+        alert('يجب إدخال قيمة النتيجة');
+        return false;
+    }
+    
+    if (!sampleId) {
+        e.preventDefault();
+        alert('يجب اختيار العينة');
+        return false;
+    }
+    
+    if (!parameterId) {
+        e.preventDefault();
+        alert('يجب اختيار المعيار');
+        return false;
+    }
+});
+</script>
+{% endblock %}

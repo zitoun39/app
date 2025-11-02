@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}التحليلات المتقدمة - جودتي{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+    .stats-card {
+        border-radius: 0.5rem;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        margin-bottom: 1.5rem;
+    }
+    .stats-card-header {
+        padding: 0.75rem 1.25rem;
+        border-bottom: 1px solid #e3e6f0;
+        background-color: #f8f9fc;
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+    }
+    .stats-card-body {
+        padding: 1.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">لوحة التحكم</a></li>
+        <li class="breadcrumb-item active">التحليلات المتقدمة</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">التحليلات المتقدمة</h1>
+    <div>
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-primary time-filter" data-period="7">آخر 7 أيام</button>
+            <button type="button" class="btn btn-outline-primary time-filter active" data-period="30">آخر 30 يوم</button>
+            <button type="button" class="btn btn-outline-primary time-filter" data-period="90">آخر 3 أشهر</button>
+            <button type="button" class="btn btn-outline-primary time-filter" data-period="365">آخر سنة</button>
+        </div>
+        <button class="btn btn-primary ms-2" id="refreshData">
+            <i class="fas fa-sync-alt"></i> تحديث
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <!-- اتجاهات العينات -->
+    <div class="col-xl-6 mb-4">
+        <div class="card stats-card">
+            <div class="stats-card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">اتجاهات العينات</h6>
+                <div class="dropdown no-arrow">
+                    <a class="dropdown-toggle" href="#" role="button" id="sampleTrendsDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end shadow animated--fade-in" aria-labelledby="sampleTrendsDropdown">
+                        <div class="dropdown-header">خيارات الرسم البياني:</div>
+                        <a class="dropdown-item chart-type" data-type="line" data-target="sampleTrendsChart" href="#">خط بياني</a>
+                        <a class="dropdown-item chart-type" data-type="bar" data-target="sampleTrendsChart" href="#">رسم شريطي</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="#" id="downloadSampleTrends">تحميل البيانات (CSV)</a>
+                    </div>
+                </div>
+            </div>
+            <div class="stats-card-body">
+                <div class="chart-container">
+                    <canvas id="sampleTrendsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- توزيع حالة العينات -->
+    <div class="col-xl-6 mb-4">
+        <div class="card stats-card">
+            <div class="stats-card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">توزيع حالة العينات</h6>
+                <div class="dropdown no-arrow">
+                    <a class="dropdown-toggle" href="#" role="button" id="sampleStatusDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end shadow animated--fade-in" aria-labelledby="sampleStatusDropdown">
+                        <div class="dropdown-header">خيارات الرسم البياني:</div>
+                        <a class="dropdown-item chart-type" data-type="pie" data-target="sampleStatusChart" href="#">رسم دائري</a>
+                        <a class="dropdown-item chart-type" data-type="doughnut" data-target="sampleStatusChart" href="#">رسم حلقي</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="#" id="downloadSampleStatus">تحميل البيانات (CSV)</a>
+                    </div>
+                </div>
+            </div>
+            <div class="stats-card-body">
+                <div class="chart-container">
+                    <canvas id="sampleStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نسبة المطابقة للمعايير -->
+    <div class="col-xl-6 mb-4">
+        <div class="card stats-card">
+            <div class="stats-card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">نسبة المطابقة للمعايير</h6>
+                <div class="dropdown no-arrow">
+                    <a class="dropdown-toggle" href="#" role="button" id="conformityDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end shadow animated--fade-in" aria-labelledby="conformityDropdown">
+                        <div class="dropdown-header">خيارات الرسم البياني:</div>
+                        <a class="dropdown-item chart-type" data-type="bar" data-target="conformityChart" href="#">رسم شريطي</a>
+                        <a class="dropdown-item chart-type" data-type="line" data-target="conformityChart" href="#">خط بياني</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="#" id="downloadConformity">تحميل البيانات (CSV)</a>
+                    </div>
+                </div>
+            </div>
+            <div class="stats-card-body">
+                <div class="chart-container">
+                    <canvas id="conformityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- توزيع العينات حسب المنطقة -->
+    <div class="col-xl-6 mb-4">
+        <div class="card stats-card">
+            <div class="stats-card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">توزيع العينات حسب المنطقة</h6>
+                <div class="dropdown no-arrow">
+                    <a class="dropdown-toggle" href="#" role="button" id="regionDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end shadow animated--fade-in" aria-labelledby="regionDropdown">
+                        <div class="dropdown-header">خيارات الرسم البياني:</div>
+                        <a class="dropdown-item chart-type" data-type="bar" data-target="regionChart" href="#">رسم شريطي</a>
+                        <a class="dropdown-item chart-type" data-type="pie" data-target="regionChart" href="#">رسم دائري</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="#" id="downloadRegion">تحميل البيانات (CSV)</a>
+                    </div>
+                </div>
+            </div>
+            <div class="stats-card-body">
+                <div class="chart-container">
+                    <canvas id="regionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- تحليل المعايير -->
+<div class="card stats-card mb-4">
+    <div class="stats-card-header d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">تحليل المعايير</h6>
+        <div class="dropdown no-arrow">
+            <a class="dropdown-toggle" href="#" role="button" id="parametersDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+            </a>
+            <div class="dropdown-menu dropdown-menu-end shadow animated--fade-in" aria-labelledby="parametersDropdown">
+                <div class="dropdown-header">خيارات الرسم البياني:</div>
+                <a class="dropdown-item chart-type" data-type="bar" data-target="parametersChart" href="#">رسم شريطي</a>
+                <a class="dropdown-item chart-type" data-type="radar" data-target="parametersChart" href="#">رسم راداري</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#" id="downloadParameters">تحميل البيانات (CSV)</a>
+            </div>
+        </div>
+    </div>
+    <div class="stats-card-body">
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <select class="form-select" id="parameterCategory">
+                    <option value="all">جميع الفئات</option>
+                    <option value="physical">الخصائص الفيزيائية</option>
+                    <option value="chemical">الخصائص الكيميائية</option>
+                    <option value="biological">الخصائص البيولوجية</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" id="parameterMetric">
+                    <option value="avg">متوسط القيم</option>
+                    <option value="max">القيم القصوى</option>
+                    <option value="min">القيم الدنيا</option>
+                    <option value="conformity">نسبة المطابقة</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" id="parameterLimit">
+                    <option value="5">أعلى 5 معايير</option>
+                    <option value="10">أعلى 10 معايير</option>
+                    <option value="all">جميع المعايير</option>
+                </select>
+            </div>
+        </div>
+        <div class="chart-container" style="height: 400px;">
+            <canvas id="parametersChart"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard-charts.js') }}"></script>
+{% endblock %}

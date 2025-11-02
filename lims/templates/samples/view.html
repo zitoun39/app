@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+
+{% block title %}عينة {{ sample.sample_id }} - جودتي{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">لوحة التحكم</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('samples.index') }}">العينات</a></li>
+        <li class="breadcrumb-item active">{{ sample.sample_id }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">عينة {{ sample.sample_id }}</h1>
+        <span class="status-badge status-{{ sample.status.value }} fs-6">
+            {{ sample.status.value }}
+        </span>
+    </div>
+    
+    <div class="btn-group" role="group">
+        {% if sample.status.value == 'pending' and current_user.role in ['ADMIN', 'SUPERVISOR', 'ANALYST'] %}
+        <a href="{{ url_for('samples.edit', id=sample.id) }}" class="btn btn-warning">
+            <i class="fas fa-edit me-2"></i>
+            تعديل
+        </a>
+        {% endif %}
+        
+        <a href="{{ url_for('samples.print_label', id=sample.id) }}" class="btn btn-outline-secondary" target="_blank">
+            <i class="fas fa-barcode me-2"></i>
+            طباعة الملصق
+        </a>
+        
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <ul class="dropdown-menu">
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('samples.duplicate_sample', id=sample.id) }}">
+                        <i class="fas fa-copy me-2"></i>نسخ العينة
+                    </a>
+                </li>
+                {% if sample.status.value in ['completed', 'validated'] %}
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('reports.sample_report', sample_id=sample.id) }}">
+                        <i class="fas fa-file-alt me-2"></i>تقرير العينة
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('reports.sample_report_pdf', sample_id=sample.id) }}" target="_blank">
+                        <i class="fas fa-file-pdf me-2"></i>تقرير PDF
+                    </a>
+                </li>
+                {% endif %}
+                {% if sample.status.value != 'validated' and current_user.role in ['ADMIN', 'SUPERVISOR'] %}
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <form method="POST" action="{{ url_for('samples.cancel_sample', id=sample.id) }}" 
+                          class="d-inline" onsubmit="return confirm('هل تريد إلغاء هذه العينة؟')">
+                        <button type="submit" class="dropdown-item text-danger">
+                            <i class="fas fa-times me-2"></i>إلغاء العينة
+                        </button>
+                    </form>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Sample Information -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    معلومات العينة
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td class="fw-bold">رقم العينة:</td>
+                                <td>{{ sample.sample_id }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">نوع العينة:</td>
+                                <td>{{ sample.sample_type.name if sample.sample_type else '-' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">الموقع:</td>
+                                <td>{{ sample.location or '-' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">الإحداثيات:</td>
+                                <td>
+                                    {% if sample.gps_coordinates %}
+                                        <a href="https://maps.google.com/?q={{ sample.gps_coordinates }}" target="_blank" class="text-decoration-none">
+                                            {{ sample.gps_coordinates }}
+                                            <i class="fas fa-external-link-alt ms-1"></i>
+                                        </a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">جامع العينة:</td>
+                                <td>{{ sample.collector_name or '-' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td class="fw-bold">تاريخ الجمع:</td>
+                                <td>
+                                    {% if sample.collection_date %}
+                                        {{ sample.collection_date.strftime('%Y/%m/%d') }}
+                                        {% if sample.collection_time %}
+                                            {{ sample.collection_time.strftime('%H:%M') }}
+                                        {% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">تاريخ الاستلام:</td>
+                                <td>
+                                    {% if sample.received_date %}
+                                        {{ sample.received_date.strftime('%Y/%m/%d') }}
+                                        {% if sample.received_time %}
+                                            {{ sample.received_time.strftime('%H:%M') }}
+                                        {% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">درجة الحرارة:</td>
+                                <td>{{ sample.temperature ~ '°C' if sample.temperature else '-' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">الأس الهيدروجيني:</td>
+                                <td>{{ sample.ph if sample.ph else '-' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">المحلل:</td>
+                                <td>{{ sample.analyst.full_name if sample.analyst else '-' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                {% if sample.notes %}
+                <div class="mt-3">
+                    <h6 class="fw-bold">الملاحظات:</h6>
+                    <p class="text-muted">{{ sample.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Results Section -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="fas fa-flask me-2"></i>
+                    نتائج التحليل
+                </h6>
+                {% if sample.status.value == 'in_progress' and current_user.role in ['ADMIN', 'SUPERVISOR', 'ANALYST'] %}
+                <a href="{{ url_for('results.add_result', sample_id=sample.id) }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i>
+                    إضافة نتيجة
+                </a>
+                {% endif %}
+            </div>
+            
+            <div class="card-body">
+                {% if results %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>المعيار</th>
+                                <th>النتيجة</th>
+                                <th>الوحدة</th>
+                                <th>الحد الأدنى</th>
+                                <th>الحد الأعلى</th>
+                                <th>المطابقة</th>
+                                <th>الحالة</th>
+                                <th>المحلل</th>
+                                <th>التاريخ</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results %}
+                            <tr>
+                                <td class="fw-bold">{{ result.parameter.name }}</td>
+                                <td>
+                                    {% if result.value is not none %}
+                                        {{ "%.3f"|format(result.value) if result.value != result.value|int else result.value|int }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ result.parameter.unit or '-' }}</td>
+                                <td>{{ result.parameter.min_value if result.parameter.min_value is not none else '-' }}</td>
+                                <td>{{ result.parameter.max_value if result.parameter.max_value is not none else '-' }}</td>
+                                <td>
+                                    {% if result.conformity is not none %}
+                                        <span class="badge {{ 'bg-success' if result.conformity else 'bg-danger' }}">
+                                            {{ 'مطابق' if result.conformity else 'غير مطابق' }}
+                                        </span>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="status-badge status-{{ result.status.value }}">
+                                        {{ result.status.value }}
+                                    </span>
+                                </td>
+                                <td>{{ result.analyst.full_name if result.analyst else '-' }}</td>
+                                <td>{{ result.analysis_date.strftime('%Y/%m/%d') if result.analysis_date else '-' }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('results.view', id=result.id) }}" 
+                                           class="btn btn-outline-primary" title="عرض">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        
+                                        {% if result.status.value == 'pending' and current_user.role in ['ADMIN', 'SUPERVISOR', 'ANALYST'] %}
+                                        <a href="{{ url_for('results.edit', id=result.id) }}" 
+                                           class="btn btn-outline-warning" title="تعديل">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% endif %}
+                                        
+                                        {% if result.status.value == 'pending' and current_user.role in ['ADMIN', 'SUPERVISOR'] %}
+                                        <form method="POST" action="{{ url_for('results.validate', id=result.id) }}" 
+                                              class="d-inline" onsubmit="return confirm('هل تريد اعتماد هذه النتيجة؟')">
+                                            <button type="submit" class="btn btn-outline-success" title="اعتماد">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Results Summary -->
+                {% if results %}
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">إجمالي النتائج</h6>
+                            <h4 class="text-primary">{{ results|length }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">معتمدة</h6>
+                            <h4 class="text-success">{{ results|selectattr('status.value', 'equalto', 'validated')|list|length }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">مطابقة</h6>
+                            <h4 class="text-success">{{ results|selectattr('conformity', 'equalto', true)|list|length }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6 class="text-muted">غير مطابقة</h6>
+                            <h4 class="text-danger">{{ results|selectattr('conformity', 'equalto', false)|list|length }}</h4>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-flask fa-3x text-muted mb-3"></i>
+                    <h6 class="text-muted">لا توجد نتائج تحليل</h6>
+                    {% if sample.status.value == 'in_progress' and current_user.role in ['ADMIN', 'SUPERVISOR', 'ANALYST'] %}
+                    <a href="{{ url_for('results.add_result', sample_id=sample.id) }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        إضافة أول نتيجة
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Status Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>
+                    إجراءات العينة
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if sample.status.value == 'pending' and current_user.role in ['ADMIN', 'SUPERVISOR', 'ANALYST'] %}
+                <form method="POST" action="{{ url_for('samples.start_analysis', id=sample.id) }}" class="mb-2">
+                    <button type="submit" class="btn btn-info w-100" onclick="return confirm('هل تريد بدء تحليل هذه العينة؟')">
+                        <i class="fas fa-play me-2"></i>
+                        بدء التحليل
+                    </button>
+                </form>
+                {% endif %}
+                
+                {% if sample.status.value == 'in_progress' and current_user.role in ['ADMIN', 'SUPERVISOR', 'ANALYST'] %}
+                <form method="POST" action="{{ url_for('samples.complete_analysis', id=sample.id) }}" class="mb-2">
+                    <button type="submit" class="btn btn-success w-100" onclick="return confirm('هل تريد إكمال تحليل هذه العينة؟')">
+                        <i class="fas fa-check me-2"></i>
+                        إكمال التحليل
+                    </button>
+                </form>
+                {% endif %}
+                
+                {% if sample.status.value == 'completed' and current_user.role in ['ADMIN', 'SUPERVISOR'] %}
+                <form method="POST" action="{{ url_for('samples.validate_sample', id=sample.id) }}" class="mb-2">
+                    <button type="submit" class="btn btn-primary w-100" onclick="return confirm('هل تريد اعتماد هذه العينة؟')">
+                        <i class="fas fa-stamp me-2"></i>
+                        اعتماد العينة
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Timeline -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    سجل العينة
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">إنشاء العينة</h6>
+                            <p class="text-muted mb-0">{{ sample.created_at.strftime('%Y/%m/%d %H:%M') }}</p>
+                            <small class="text-muted">بواسطة {{ sample.created_by.full_name if sample.created_by else 'النظام' }}</small>
+                        </div>
+                    </div>
+                    
+                    {% if sample.analysis_started_at %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-info"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">بدء التحليل</h6>
+                            <p class="text-muted mb-0">{{ sample.analysis_started_at.strftime('%Y/%m/%d %H:%M') }}</p>
+                            <small class="text-muted">بواسطة {{ sample.analyst.full_name if sample.analyst else '-' }}</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if sample.analysis_completed_at %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-success"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">إكمال التحليل</h6>
+                            <p class="text-muted mb-0">{{ sample.analysis_completed_at.strftime('%Y/%m/%d %H:%M') }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if sample.validated_at %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">اعتماد العينة</h6>
+                            <p class="text-muted mb-0">{{ sample.validated_at.strftime('%Y/%m/%d %H:%M') }}</p>
+                            <small class="text-muted">بواسطة {{ sample.validated_by.full_name if sample.validated_by else '-' }}</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quality Control -->
+        {% if sample.status.value in ['completed', 'validated'] %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    ضمان الجودة
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h6 class="text-muted">معدل المطابقة</h6>
+                        {% set conforming_results = results|selectattr('conformity', 'equalto', true)|list|length %}
+                        {% set total_results = results|selectattr('conformity', 'ne', none)|list|length %}
+                        {% if total_results > 0 %}
+                            {% set conformity_rate = (conforming_results / total_results * 100)|round(1) %}
+                            <h4 class="{{ 'text-success' if conformity_rate >= 90 else 'text-warning' if conformity_rate >= 70 else 'text-danger' }}">
+                                {{ conformity_rate }}%
+                            </h4>
+                        {% else %}
+                            <h4 class="text-muted">-</h4>
+                        {% endif %}
+                    </div>
+                    <div class="col-6">
+                        <h6 class="text-muted">وقت التحليل</h6>
+                        {% if sample.analysis_started_at and sample.analysis_completed_at %}
+                            {% set duration = (sample.analysis_completed_at - sample.analysis_started_at).total_seconds() / 3600 %}
+                            <h4 class="text-info">{{ "%.1f"|format(duration) }}س</h4>
+                        {% else %}
+                            <h4 class="text-muted">-</h4>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 20px;
+}
+
+.timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: -21px;
+    top: 20px;
+    height: calc(100% - 10px);
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -25px;
+    top: 5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-pending { background-color: #ffc107; color: #000; }
+.status-in_progress { background-color: #17a2b8; color: #fff; }
+.status-completed { background-color: #28a745; color: #fff; }
+.status-validated { background-color: #007bff; color: #fff; }
+.status-cancelled { background-color: #dc3545; color: #fff; }
+</style>
+{% endblock %}

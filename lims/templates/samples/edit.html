@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل عينة {{ sample.sample_id }} - جودتي{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">لوحة التحكم</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('samples.index') }}">العينات</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('samples.view', id=sample.id) }}">{{ sample.sample_id }}</a></li>
+        <li class="breadcrumb-item active">تعديل</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>
+                    تعديل عينة {{ sample.sample_id }}
+                </h5>
+            </div>
+            
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('samples.edit', id=sample.id) }}" id="editSampleForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <!-- Sample ID -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.sample_id.label(class="form-label") }}
+                            {{ form.sample_id(class="form-control" + (" is-invalid" if form.sample_id.errors else ""), readonly=true) }}
+                            {% if form.sample_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.sample_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">لا يمكن تعديل رقم العينة</div>
+                        </div>
+                        
+                        <!-- Sample Type -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.sample_type_id.label(class="form-label") }}
+                            {{ form.sample_type_id(class="form-select" + (" is-invalid" if form.sample_type_id.errors else "")) }}
+                            {% if form.sample_type_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.sample_type_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Location -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.location.label(class="form-label") }}
+                            {{ form.location(class="form-control" + (" is-invalid" if form.location.errors else "")) }}
+                            {% if form.location.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.location.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- GPS Coordinates -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.gps_coordinates.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.gps_coordinates(class="form-control" + (" is-invalid" if form.gps_coordinates.errors else ""), placeholder="مثال: 24.7136, 46.6753") }}
+                                <button type="button" class="btn btn-outline-secondary" onclick="getCurrentLocation()">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </button>
+                            </div>
+                            {% if form.gps_coordinates.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.gps_coordinates.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Collection Date -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.collection_date.label(class="form-label") }}
+                            {{ form.collection_date(class="form-control" + (" is-invalid" if form.collection_date.errors else "")) }}
+                            {% if form.collection_date.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.collection_date.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Collection Time -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.collection_time.label(class="form-label") }}
+                            {{ form.collection_time(class="form-control" + (" is-invalid" if form.collection_time.errors else "")) }}
+                            {% if form.collection_time.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.collection_time.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Received Date -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.received_date.label(class="form-label") }}
+                            {{ form.received_date(class="form-control" + (" is-invalid" if form.received_date.errors else "")) }}
+                            {% if form.received_date.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.received_date.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Received Time -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.received_time.label(class="form-label") }}
+                            {{ form.received_time(class="form-control" + (" is-invalid" if form.received_time.errors else "")) }}
+                            {% if form.received_time.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.received_time.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Temperature -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.temperature.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.temperature(class="form-control" + (" is-invalid" if form.temperature.errors else "")) }}
+                                <span class="input-group-text">°C</span>
+                            </div>
+                            {% if form.temperature.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.temperature.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- pH -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.ph.label(class="form-label") }}
+                            {{ form.ph(class="form-control" + (" is-invalid" if form.ph.errors else ""), step="0.01", min="0", max="14") }}
+                            {% if form.ph.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.ph.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Collector Name -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.collector_name.label(class="form-label") }}
+                            {{ form.collector_name(class="form-control" + (" is-invalid" if form.collector_name.errors else "")) }}
+                            {% if form.collector_name.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.collector_name.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Analyst -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.analyst_id.label(class="form-label") }}
+                            {{ form.analyst_id(class="form-select" + (" is-invalid" if form.analyst_id.errors else "")) }}
+                            {% if form.analyst_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.analyst_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else ""), rows="3") }}
+                        {% if form.notes.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.notes.errors[0] }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Change Log -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-history me-2"></i>
+                                سبب التعديل
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="change_reason" class="form-label">سبب التعديل <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="change_reason" name="change_reason" rows="2" 
+                                          placeholder="اذكر سبب تعديل بيانات العينة..." required></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('samples.view', id=sample.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            إلغاء
+                        </a>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            حفظ التعديلات
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Change History -->
+        {% if sample.change_logs %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    سجل التعديلات
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>المستخدم</th>
+                                <th>الحقل</th>
+                                <th>القيمة السابقة</th>
+                                <th>القيمة الجديدة</th>
+                                <th>السبب</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in sample.change_logs %}
+                            <tr>
+                                <td>{{ log.created_at.strftime('%Y/%m/%d %H:%M') }}</td>
+                                <td>{{ log.user.full_name }}</td>
+                                <td>{{ log.field_name }}</td>
+                                <td class="text-muted">{{ log.old_value or '-' }}</td>
+                                <td class="fw-bold">{{ log.new_value or '-' }}</td>
+                                <td>{{ log.reason }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Get current GPS location
+function getCurrentLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude.toFixed(6);
+                const lng = position.coords.longitude.toFixed(6);
+                document.getElementById('gps_coordinates').value = `${lat}, ${lng}`;
+            },
+            function(error) {
+                alert('لا يمكن الحصول على الموقع الحالي: ' + error.message);
+            }
+        );
+    } else {
+        alert('المتصفح لا يدعم خدمة تحديد الموقع');
+    }
+}
+
+// Form validation
+document.getElementById('editSampleForm').addEventListener('submit', function(e) {
+    const collectionDate = new Date(document.getElementById('collection_date').value);
+    const receivedDate = new Date(document.getElementById('received_date').value);
+    const changeReason = document.getElementById('change_reason').value.trim();
+    
+    if (!changeReason) {
+        e.preventDefault();
+        alert('يجب ذكر سبب التعديل');
+        document.getElementById('change_reason').focus();
+        return false;
+    }
+    
+    if (collectionDate > receivedDate) {
+        e.preventDefault();
+        alert('تاريخ الجمع لا يمكن أن يكون بعد تاريخ الاستلام');
+        return false;
+    }
+});
+
+// Track changes
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('editSampleForm');
+    const originalValues = {};
+    
+    // Store original values
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (input.name && input.name !== 'change_reason' && input.name !== 'csrf_token') {
+            originalValues[input.name] = input.value;
+        }
+    });
+    
+    // Check for changes before submit
+    form.addEventListener('submit', function(e) {
+        let hasChanges = false;
+        
+        inputs.forEach(input => {
+            if (input.name && input.name !== 'change_reason' && input.name !== 'csrf_token') {
+                if (originalValues[input.name] !== input.value) {
+                    hasChanges = true;
+                }
+            }
+        });
+        
+        if (!hasChanges) {
+            e.preventDefault();
+            alert('لم يتم إجراء أي تعديلات');
+            return false;
+        }
+    });
+    
+    // Warn before leaving if there are unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        let hasChanges = false;
+        
+        inputs.forEach(input => {
+            if (input.name && input.name !== 'change_reason' && input.name !== 'csrf_token') {
+                if (originalValues[input.name] !== input.value) {
+                    hasChanges = true;
+                }
+            }
+        });
+        
+        if (hasChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+});
+</script>
+{% endblock %}

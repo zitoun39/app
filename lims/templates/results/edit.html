@@ -1,0 +1,479 @@
+{% extends "base.html" %}
+
+{% block title %}تعديل النتيجة - جودتي{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">لوحة التحكم</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('results.index') }}">النتائج</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('samples.view', id=result.sample.id) }}">{{ result.sample.sample_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('results.view_result', id=result.id) }}">{{ result.parameter.name }}</a></li>
+        <li class="breadcrumb-item active">تعديل</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>
+                    تعديل النتيجة
+                    <small class="text-muted">- {{ result.sample.sample_id }} / {{ result.parameter.name }}</small>
+                </h5>
+            </div>
+            
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('results.edit_result', id=result.id) }}" id="editResultForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Current Information -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                المعلومات الحالية
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>العينة:</strong> {{ result.sample.sample_id }}<br>
+                                    <strong>المعيار:</strong> {{ result.parameter.name }}<br>
+                                    <strong>القيمة الحالية:</strong> 
+                                    <span class="fw-bold">{{ "%.3f"|format(result.value) }}</span>
+                                    {% if result.parameter.unit %}
+                                        <small class="text-muted">{{ result.parameter.unit }}</small>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>الحالة:</strong> 
+                                    {% if result.status == 'PENDING' %}
+                                        <span class="badge bg-warning">معلقة</span>
+                                    {% elif result.status == 'VALIDATED' %}
+                                        <span class="badge bg-success">معتمدة</span>
+                                    {% elif result.status == 'REJECTED' %}
+                                        <span class="badge bg-danger">مرفوضة</span>
+                                    {% endif %}<br>
+                                    <strong>المطابقة:</strong>
+                                    {% if result.conformity == 'CONFORMING' %}
+                                        <span class="badge bg-success">مطابق</span>
+                                    {% elif result.conformity == 'NON_CONFORMING' %}
+                                        <span class="badge bg-danger">غير مطابق</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">غير محدد</span>
+                                    {% endif %}<br>
+                                    <strong>المحلل:</strong> {{ result.analyst.full_name if result.analyst else 'غير محدد' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Parameter Information -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-flask me-2"></i>
+                                معلومات المعيار
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <strong>الوحدة:</strong>
+                                    <span>{{ result.parameter.unit or 'بدون وحدة' }}</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>الحد الأدنى:</strong>
+                                    <span>{{ result.parameter.min_value if result.parameter.min_value is not none else '-' }}</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>الحد الأعلى:</strong>
+                                    <span>{{ result.parameter.max_value if result.parameter.max_value is not none else '-' }}</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>طريقة التحليل:</strong>
+                                    <span>{{ result.parameter.method or '-' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Result Value -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.value.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.value(class="form-control" + (" is-invalid" if form.value.errors else ""), 
+                                             step="0.001", onchange="checkConformity()", 
+                                             **{'data-original': result.value}) }}
+                                <span class="input-group-text">{{ result.parameter.unit or '-' }}</span>
+                            </div>
+                            {% if form.value.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.value.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Analysis Date -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.analysis_date.label(class="form-label") }}
+                            {{ form.analysis_date(class="form-control" + (" is-invalid" if form.analysis_date.errors else ""), 
+                                                 **{'data-original': result.analysis_date.strftime('%Y-%m-%d') if result.analysis_date else ''}) }}
+                            {% if form.analysis_date.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.analysis_date.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Analysis Time -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.analysis_time.label(class="form-label") }}
+                            {{ form.analysis_time(class="form-control" + (" is-invalid" if form.analysis_time.errors else ""), 
+                                                 **{'data-original': result.analysis_time.strftime('%H:%M') if result.analysis_time else ''}) }}
+                            {% if form.analysis_time.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.analysis_time.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Equipment -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.equipment_id.label(class="form-label") }}
+                            {{ form.equipment_id(class="form-select" + (" is-invalid" if form.equipment_id.errors else ""), 
+                                                **{'data-original': result.equipment_id or ''}) }}
+                            {% if form.equipment_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.equipment_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Conformity Check -->
+                    <div class="card mb-3" id="conformity-check">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-check-circle me-2"></i>
+                                فحص المطابقة
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div id="conformity-message" class="alert mb-0" role="alert">
+                                        <!-- Conformity message will be displayed here -->
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <span class="badge fs-6" id="conformity-badge">
+                                        <!-- Conformity status will be displayed here -->
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quality Control -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-shield-alt me-2"></i>
+                                ضمان الجودة
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    {{ form.dilution_factor.label(class="form-label") }}
+                                    {{ form.dilution_factor(class="form-control" + (" is-invalid" if form.dilution_factor.errors else ""), 
+                                                           step="0.1", min="0.1", 
+                                                           **{'data-original': result.dilution_factor or '1.0'}) }}
+                                    {% if form.dilution_factor.errors %}
+                                        <div class="invalid-feedback">
+                                            {{ form.dilution_factor.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    {{ form.detection_limit.label(class="form-label") }}
+                                    {{ form.detection_limit(class="form-control" + (" is-invalid" if form.detection_limit.errors else ""), 
+                                                           step="0.001", 
+                                                           **{'data-original': result.detection_limit or ''}) }}
+                                    {% if form.detection_limit.errors %}
+                                        <div class="invalid-feedback">
+                                            {{ form.detection_limit.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    {{ form.uncertainty.label(class="form-label") }}
+                                    <div class="input-group">
+                                        {{ form.uncertainty(class="form-control" + (" is-invalid" if form.uncertainty.errors else ""), 
+                                                          step="0.01", 
+                                                          **{'data-original': result.uncertainty or ''}) }}
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    {% if form.uncertainty.errors %}
+                                        <div class="invalid-feedback">
+                                            {{ form.uncertainty.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">علامات الجودة</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="quality_flags" 
+                                               value="outlier" id="flag_outlier" 
+                                               {% if result.quality_flags and 'outlier' in result.quality_flags %}checked{% endif %}>
+                                        <label class="form-check-label" for="flag_outlier">
+                                            قيمة شاذة
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="quality_flags" 
+                                               value="below_detection" id="flag_below_detection"
+                                               {% if result.quality_flags and 'below_detection' in result.quality_flags %}checked{% endif %}>
+                                        <label class="form-check-label" for="flag_below_detection">
+                                            أقل من حد الكشف
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else ""), rows="3", 
+                                     **{'data-original': result.notes or ''}) }}
+                        {% if form.notes.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.notes.errors[0] }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Change Reason (Required for audit) -->
+                    <div class="mb-3">
+                        {{ form.change_reason.label(class="form-label text-danger") }}
+                        {{ form.change_reason(class="form-control" + (" is-invalid" if form.change_reason.errors else ""), 
+                                            rows="2", placeholder="يجب تحديد سبب التعديل لأغراض التدقيق") }}
+                        {% if form.change_reason.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.change_reason.errors[0] }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text text-danger">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            هذا الحقل مطلوب لأغراض التدقيق والمراجعة
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('results.view_result', id=result.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            إلغاء
+                        </a>
+                        
+                        <button type="submit" class="btn btn-primary" id="saveBtn" disabled>
+                            <i class="fas fa-save me-2"></i>
+                            حفظ التعديلات
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Change History -->
+        {% if result.change_logs and result.change_logs|length > 0 %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    سجل التغييرات السابقة
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>المستخدم</th>
+                                <th>الحقل</th>
+                                <th>القيمة السابقة</th>
+                                <th>القيمة الجديدة</th>
+                                <th>السبب</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in result.change_logs %}
+                            <tr>
+                                <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ log.user.full_name }}</td>
+                                <td>{{ log.field_name }}</td>
+                                <td><code>{{ log.old_value or 'فارغ' }}</code></td>
+                                <td><code>{{ log.new_value or 'فارغ' }}</code></td>
+                                <td>{{ log.reason or 'غير محدد' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Store parameter limits for conformity check
+window.parameterLimits = {
+    min: {{ result.parameter.min_value if result.parameter.min_value is not none else 'null' }},
+    max: {{ result.parameter.max_value if result.parameter.max_value is not none else 'null' }},
+    unit: '{{ result.parameter.unit or "" }}'
+};
+
+// Track form changes
+let hasChanges = false;
+const originalValues = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Store original values
+    const formElements = document.querySelectorAll('input, select, textarea');
+    formElements.forEach(element => {
+        if (element.name && element.name !== 'csrf_token') {
+            originalValues[element.name] = element.value;
+        }
+    });
+    
+    // Check initial conformity
+    checkConformity();
+    
+    // Add change listeners
+    formElements.forEach(element => {
+        if (element.name && element.name !== 'csrf_token') {
+            element.addEventListener('input', checkForChanges);
+            element.addEventListener('change', checkForChanges);
+        }
+    });
+    
+    // Warn before leaving if there are unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasChanges) {
+            e.preventDefault();
+            e.returnValue = 'لديك تغييرات غير محفوظة. هل أنت متأكد من المغادرة؟';
+        }
+    });
+});
+
+// Check for form changes
+function checkForChanges() {
+    hasChanges = false;
+    const formElements = document.querySelectorAll('input, select, textarea');
+    
+    formElements.forEach(element => {
+        if (element.name && element.name !== 'csrf_token') {
+            if (element.type === 'checkbox') {
+                // Handle checkboxes differently
+                const originalChecked = element.dataset.originalChecked === 'true';
+                if (element.checked !== originalChecked) {
+                    hasChanges = true;
+                }
+            } else if (originalValues[element.name] !== element.value) {
+                hasChanges = true;
+            }
+        }
+    });
+    
+    // Enable/disable save button based on changes and change reason
+    const saveBtn = document.getElementById('saveBtn');
+    const changeReason = document.getElementById('change_reason').value.trim();
+    
+    saveBtn.disabled = !hasChanges || !changeReason;
+}
+
+// Check conformity based on parameter limits
+function checkConformity() {
+    const value = parseFloat(document.getElementById('value').value);
+    const conformityMessage = document.getElementById('conformity-message');
+    const conformityBadge = document.getElementById('conformity-badge');
+    
+    if (!value || !window.parameterLimits) {
+        return;
+    }
+    
+    const { min, max } = window.parameterLimits;
+    let isConforming = true;
+    let message = '';
+    
+    if (min !== null && value < min) {
+        isConforming = false;
+        message = `القيمة أقل من الحد الأدنى المسموح (${min})`;
+    } else if (max !== null && value > max) {
+        isConforming = false;
+        message = `القيمة أعلى من الحد الأعلى المسموح (${max})`;
+    } else {
+        message = 'القيمة ضمن الحدود المسموحة';
+    }
+    
+    // Update UI
+    conformityMessage.className = `alert mb-0 ${isConforming ? 'alert-success' : 'alert-danger'}`;
+    conformityMessage.textContent = message;
+    
+    conformityBadge.className = `badge fs-6 ${isConforming ? 'bg-success' : 'bg-danger'}`;
+    conformityBadge.textContent = isConforming ? 'مطابق' : 'غير مطابق';
+}
+
+// Form validation
+document.getElementById('editResultForm').addEventListener('submit', function(e) {
+    const value = document.getElementById('value').value;
+    const changeReason = document.getElementById('change_reason').value.trim();
+    
+    if (!value) {
+        e.preventDefault();
+        alert('يجب إدخال قيمة النتيجة');
+        return false;
+    }
+    
+    if (!changeReason) {
+        e.preventDefault();
+        alert('يجب تحديد سبب التعديل');
+        return false;
+    }
+    
+    if (!hasChanges) {
+        e.preventDefault();
+        alert('لم يتم إجراء أي تغييرات');
+        return false;
+    }
+    
+    // Confirm submission
+    if (!confirm('هل أنت متأكد من حفظ هذه التعديلات؟')) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+// Add change listener to change reason field
+document.getElementById('change_reason').addEventListener('input', checkForChanges);
+</script>
+{% endblock %}

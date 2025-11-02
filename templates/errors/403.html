@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>غير مصرح بالوصول - {{ app_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #ffa726 0%, #ff7043 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .error-container {
+            text-align: center;
+            color: white;
+            max-width: 600px;
+            padding: 2rem;
+        }
+        .error-code {
+            font-size: 8rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 1rem;
+        }
+        .error-message {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        .error-description {
+            font-size: 1.1rem;
+            margin-bottom: 3rem;
+            opacity: 0.8;
+        }
+        .btn-home {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin: 0 10px;
+        }
+        .btn-home:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .floating-icon {
+            position: absolute;
+            opacity: 0.1;
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-20px) scale(1.1); }
+        }
+        .icon-1 { top: 10%; left: 10%; animation-delay: 0s; }
+        .icon-2 { top: 20%; right: 10%; animation-delay: 2s; }
+        .icon-3 { bottom: 20%; left: 15%; animation-delay: 4s; }
+        .icon-4 { bottom: 10%; right: 20%; animation-delay: 1s; }
+        .access-info {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            font-size: 0.95rem;
+            opacity: 0.8;
+        }
+        .permission-list {
+            text-align: right;
+            margin: 1rem 0;
+        }
+        .permission-list li {
+            margin: 0.5rem 0;
+            list-style: none;
+        }
+        .permission-list li:before {
+            content: "\f00c";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            margin-left: 10px;
+            color: rgba(255,255,255,0.7);
+        }
+    </style>
+</head>
+<body>
+    <!-- أيقونات عائمة -->
+    <i class="fas fa-lock floating-icon icon-1" style="font-size: 3rem;"></i>
+    <i class="fas fa-shield-alt floating-icon icon-2" style="font-size: 2.5rem;"></i>
+    <i class="fas fa-key floating-icon icon-3" style="font-size: 2rem;"></i>
+    <i class="fas fa-user-shield floating-icon icon-4" style="font-size: 2.8rem;"></i>
+
+    <div class="error-container">
+        <div class="error-code">403</div>
+        <div class="error-message">
+            <i class="fas fa-ban me-2"></i>
+            غير مصرح بالوصول
+        </div>
+        <div class="error-description">
+            عذراً، ليس لديك الصلاحية للوصول إلى هذه الصفحة.
+            <br>
+            يرجى التأكد من صلاحياتك أو الاتصال بمدير النظام.
+        </div>
+        
+        <div class="access-info">
+            <h5><i class="fas fa-info-circle me-2"></i>معلومات الوصول</h5>
+            <div class="row text-start">
+                <div class="col-md-6">
+                    <strong>المستخدم الحالي:</strong>
+                    <br>
+                    {% if current_user.is_authenticated %}
+                        {{ current_user.full_name }}
+                        <br>
+                        <small>({{ current_user.username }})</small>
+                    {% else %}
+                        غير مسجل الدخول
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <strong>الدور:</strong>
+                    <br>
+                    {% if current_user.is_authenticated %}
+                        {{ current_user.role|title }}
+                        <br>
+                        <small>{{ current_user.department }}</small>
+                    {% else %}
+                        غير محدد
+                    {% endif %}
+                </div>
+            </div>
+            
+            <hr class="my-3" style="border-color: rgba(255,255,255,0.3);">
+            
+            <div class="text-start">
+                <strong>للحصول على الصلاحية المطلوبة:</strong>
+                <ul class="permission-list">
+                    <li>تواصل مع مدير النظام</li>
+                    <li>تأكد من تسجيل الدخول بالحساب الصحيح</li>
+                    <li>تحقق من انتهاء صلاحية جلستك</li>
+                    <li>راجع سياسة الوصول للنظام</li>
+                </ul>
+            </div>
+        </div>
+
+        <div>
+            <a href="{{ url_for('index') }}" class="btn-home">
+                <i class="fas fa-home me-2"></i>
+                الصفحة الرئيسية
+            </a>
+            {% if not current_user.is_authenticated %}
+            <a href="{{ url_for('auth.login') }}" class="btn-home">
+                <i class="fas fa-sign-in-alt me-2"></i>
+                تسجيل الدخول
+            </a>
+            {% else %}
+            <a href="javascript:history.back()" class="btn-home">
+                <i class="fas fa-arrow-left me-2"></i>
+                العودة للخلف
+            </a>
+            {% endif %}
+        </div>
+        
+        <div class="mt-4">
+            <small class="opacity-75">
+                <i class="fas fa-building me-1"></i>
+                {{ company_name }}
+                <br>
+                <i class="fas fa-envelope me-1"></i>
+                للدعم التقني: admin@ade.dz
+            </small>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

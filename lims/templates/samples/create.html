@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}إضافة عينة جديدة - جودتي{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">لوحة التحكم</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('samples.index') }}">العينات</a></li>
+        <li class="breadcrumb-item active">إضافة عينة جديدة</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>
+                    إضافة عينة جديدة
+                </h5>
+            </div>
+            
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('samples.create') }}" id="sampleForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <!-- Sample ID -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.sample_id.label(class="form-label") }}
+                            {{ form.sample_id(class="form-control" + (" is-invalid" if form.sample_id.errors else "")) }}
+                            {% if form.sample_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.sample_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">سيتم توليد رقم تلقائي إذا ترك فارغاً</div>
+                        </div>
+                        
+                        <!-- Sample Type -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.sample_type_id.label(class="form-label") }}
+                            {{ form.sample_type_id(class="form-select" + (" is-invalid" if form.sample_type_id.errors else "")) }}
+                            {% if form.sample_type_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.sample_type_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Location -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.location.label(class="form-label") }}
+                            {{ form.location(class="form-control" + (" is-invalid" if form.location.errors else "")) }}
+                            {% if form.location.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.location.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- GPS Coordinates -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.gps_coordinates.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.gps_coordinates(class="form-control" + (" is-invalid" if form.gps_coordinates.errors else ""), placeholder="مثال: 24.7136, 46.6753") }}
+                                <button type="button" class="btn btn-outline-secondary" onclick="getCurrentLocation()">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </button>
+                            </div>
+                            {% if form.gps_coordinates.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.gps_coordinates.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Collection Date -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.collection_date.label(class="form-label") }}
+                            {{ form.collection_date(class="form-control" + (" is-invalid" if form.collection_date.errors else "")) }}
+                            {% if form.collection_date.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.collection_date.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Collection Time -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.collection_time.label(class="form-label") }}
+                            {{ form.collection_time(class="form-control" + (" is-invalid" if form.collection_time.errors else "")) }}
+                            {% if form.collection_time.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.collection_time.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Received Date -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.received_date.label(class="form-label") }}
+                            {{ form.received_date(class="form-control" + (" is-invalid" if form.received_date.errors else "")) }}
+                            {% if form.received_date.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.received_date.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Received Time -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.received_time.label(class="form-label") }}
+                            {{ form.received_time(class="form-control" + (" is-invalid" if form.received_time.errors else "")) }}
+                            {% if form.received_time.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.received_time.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Temperature -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.temperature.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.temperature(class="form-control" + (" is-invalid" if form.temperature.errors else "")) }}
+                                <span class="input-group-text">°C</span>
+                            </div>
+                            {% if form.temperature.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.temperature.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- pH -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.ph.label(class="form-label") }}
+                            {{ form.ph(class="form-control" + (" is-invalid" if form.ph.errors else ""), step="0.01", min="0", max="14") }}
+                            {% if form.ph.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.ph.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Collector Name -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.collector_name.label(class="form-label") }}
+                            {{ form.collector_name(class="form-control" + (" is-invalid" if form.collector_name.errors else "")) }}
+                            {% if form.collector_name.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.collector_name.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Analyst -->
+                        <div class="col-md-6 mb-3">
+                            {{ form.analyst_id.label(class="form-label") }}
+                            {{ form.analyst_id(class="form-select" + (" is-invalid" if form.analyst_id.errors else "")) }}
+                            {% if form.analyst_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.analyst_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else ""), rows="3") }}
+                        {% if form.notes.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.notes.errors[0] }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Parameters Section -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-flask me-2"></i>
+                                المعايير المطلوب تحليلها
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="parameters-container">
+                                <!-- Parameters will be loaded here based on sample type -->
+                            </div>
+                            <div class="text-muted" id="no-parameters" style="display: none;">
+                                <i class="fas fa-info-circle me-2"></i>
+                                اختر نوع العينة لعرض المعايير المتاحة
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('samples.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            إلغاء
+                        </a>
+                        
+                        <div>
+                            <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-save me-2"></i>
+                                حفظ كمسودة
+                            </button>
+                            <button type="submit" name="action" value="save_and_start" class="btn btn-primary">
+                                <i class="fas fa-play me-2"></i>
+                                حفظ وبدء التحليل
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-fill current date and time
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentTime = now.toTimeString().split(' ')[0].substring(0, 5);
+    
+    // Set default received date and time to now
+    const receivedDate = document.getElementById('received_date');
+    const receivedTime = document.getElementById('received_time');
+    
+    if (!receivedDate.value) {
+        receivedDate.value = today;
+    }
+    if (!receivedTime.value) {
+        receivedTime.value = currentTime;
+    }
+    
+    // Set default collection date to today if not set
+    const collectionDate = document.getElementById('collection_date');
+    if (!collectionDate.value) {
+        collectionDate.value = today;
+    }
+    
+    // Load parameters when sample type changes
+    const sampleTypeSelect = document.getElementById('sample_type_id');
+    sampleTypeSelect.addEventListener('change', loadParameters);
+    
+    // Load parameters on page load if sample type is already selected
+    if (sampleTypeSelect.value) {
+        loadParameters();
+    }
+});
+
+// Get current GPS location
+function getCurrentLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude.toFixed(6);
+                const lng = position.coords.longitude.toFixed(6);
+                document.getElementById('gps_coordinates').value = `${lat}, ${lng}`;
+            },
+            function(error) {
+                alert('لا يمكن الحصول على الموقع الحالي: ' + error.message);
+            }
+        );
+    } else {
+        alert('المتصفح لا يدعم خدمة تحديد الموقع');
+    }
+}
+
+// Load parameters based on sample type
+function loadParameters() {
+    const sampleTypeId = document.getElementById('sample_type_id').value;
+    const container = document.getElementById('parameters-container');
+    const noParameters = document.getElementById('no-parameters');
+    
+    if (!sampleTypeId) {
+        container.innerHTML = '';
+        noParameters.style.display = 'block';
+        return;
+    }
+    
+    // Show loading
+    container.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+    noParameters.style.display = 'none';
+    
+    // Fetch parameters for this sample type
+    fetch(`/api/sample-types/${sampleTypeId}/parameters`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.parameters && data.parameters.length > 0) {
+                let html = '<div class="row">';
+                data.parameters.forEach((param, index) => {
+                    html += `
+                        <div class="col-md-6 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" 
+                                       name="parameters" value="${param.id}" 
+                                       id="param_${param.id}" checked>
+                                <label class="form-check-label" for="param_${param.id}">
+                                    ${param.name}
+                                    <small class="text-muted">(${param.unit || 'بدون وحدة'})</small>
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<div class="text-muted"><i class="fas fa-info-circle me-2"></i>لا توجد معايير محددة لهذا النوع من العينات</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading parameters:', error);
+            container.innerHTML = '<div class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>خطأ في تحميل المعايير</div>';
+        });
+}
+
+// Form validation
+document.getElementById('sampleForm').addEventListener('submit', function(e) {
+    const collectionDate = new Date(document.getElementById('collection_date').value);
+    const receivedDate = new Date(document.getElementById('received_date').value);
+    
+    if (collectionDate > receivedDate) {
+        e.preventDefault();
+        alert('تاريخ الجمع لا يمكن أن يكون بعد تاريخ الاستلام');
+        return false;
+    }
+    
+    // Check if at least one parameter is selected
+    const checkedParams = document.querySelectorAll('input[name="parameters"]:checked');
+    if (checkedParams.length === 0) {
+        e.preventDefault();
+        alert('يجب اختيار معيار واحد على الأقل للتحليل');
+        return false;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,547 @@
+{% extends "base.html" %}
+{% block title %}البحث في الأرشيف{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">لوحة التحكم</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('archive.index') }}">الأرشيف الإلكتروني</a></li>
+            <li class="breadcrumb-item active">البحث المتقدم</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-search"></i> البحث المتقدم في الأرشيف</h2>
+            <p class="text-muted mb-0">ابحث في المستندات والمحتوى المستخرج بـ OCR</p>
+        </div>
+        <div>
+            <a href="{{ url_for('archive.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right"></i> العودة للأرشيف
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Search Form -->
+        <div class="col-md-4">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-filter"></i> معايير البحث</h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" id="searchForm">
+                        <!-- Text Search -->
+                        <div class="form-group">
+                            <label for="q">البحث النصي</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="q" name="q" 
+                                       value="{{ request.args.get('q', '') }}" 
+                                       placeholder="ابحث في العنوان، الوصف، أو المحتوى">
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-secondary" type="button" 
+                                            data-toggle="tooltip" title="نصائح البحث">
+                                        <i class="fas fa-question-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">
+                                استخدم علامات التنصيص للبحث الدقيق: "النص المطلوب"
+                            </small>
+                        </div>
+
+                        <!-- Search Type -->
+                        <div class="form-group">
+                            <label>نوع البحث</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="search_type" 
+                                       id="search_all" value="all" 
+                                       {{ 'checked' if request.args.get('search_type', 'all') == 'all' }}>
+                                <label class="form-check-label" for="search_all">
+                                    <i class="fas fa-globe"></i> البحث في كل شيء
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="search_type" 
+                                       id="search_title" value="title" 
+                                       {{ 'checked' if request.args.get('search_type') == 'title' }}>
+                                <label class="form-check-label" for="search_title">
+                                    <i class="fas fa-heading"></i> العنوان فقط
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="search_type" 
+                                       id="search_content" value="content" 
+                                       {{ 'checked' if request.args.get('search_type') == 'content' }}>
+                                <label class="form-check-label" for="search_content">
+                                    <i class="fas fa-file-alt"></i> المحتوى (OCR) فقط
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Category Filter -->
+                        <div class="form-group">
+                            <label for="category">الفئة</label>
+                            <select class="form-control" id="category" name="category">
+                                <option value="">جميع الفئات</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" 
+                                        {{ 'selected' if request.args.get('category') == category.id|string }}
+                                        data-color="{{ category.color }}">
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Document Type Filter -->
+                        <div class="form-group">
+                            <label for="doc_type">نوع المستند</label>
+                            <select class="form-control" id="doc_type" name="doc_type">
+                                <option value="">جميع الأنواع</option>
+                                <option value="تقرير" {{ 'selected' if request.args.get('doc_type') == 'تقرير' }}>تقرير</option>
+                                <option value="شهادة" {{ 'selected' if request.args.get('doc_type') == 'شهادة' }}>شهادة</option>
+                                <option value="مراسلة" {{ 'selected' if request.args.get('doc_type') == 'مراسلة' }}>مراسلة</option>
+                                <option value="عقد" {{ 'selected' if request.args.get('doc_type') == 'عقد' }}>عقد</option>
+                                <option value="فاتورة" {{ 'selected' if request.args.get('doc_type') == 'فاتورة' }}>فاتورة</option>
+                                <option value="إجراء" {{ 'selected' if request.args.get('doc_type') == 'إجراء' }}>إجراء تشغيلي</option>
+                                <option value="دليل" {{ 'selected' if request.args.get('doc_type') == 'دليل' }}>دليل</option>
+                                <option value="أخرى" {{ 'selected' if request.args.get('doc_type') == 'أخرى' }}>أخرى</option>
+                            </select>
+                        </div>
+
+                        <!-- Date Range -->
+                        <div class="form-group">
+                            <label>نطاق التاريخ</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" 
+                                           name="date_from" value="{{ request.args.get('date_from', '') }}" 
+                                           placeholder="من">
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" 
+                                           name="date_to" value="{{ request.args.get('date_to', '') }}" 
+                                           placeholder="إلى">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- File Size Filter -->
+                        <div class="form-group">
+                            <label for="file_size">حجم الملف</label>
+                            <select class="form-control" id="file_size" name="file_size">
+                                <option value="">أي حجم</option>
+                                <option value="small" {{ 'selected' if request.args.get('file_size') == 'small' }}>صغير (&lt; 1 MB)</option>
+                                <option value="medium" {{ 'selected' if request.args.get('file_size') == 'medium' }}>متوسط (1-10 MB)</option>
+                                <option value="large" {{ 'selected' if request.args.get('file_size') == 'large' }}>كبير (&gt; 10 MB)</option>
+                            </select>
+                        </div>
+
+                        <!-- OCR Filter -->
+                        <div class="form-group">
+                            <label>حالة OCR</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="has_ocr" 
+                                       id="has_ocr" {{ 'checked' if request.args.get('has_ocr') }}>
+                                <label class="form-check-label" for="has_ocr">
+                                    <i class="fas fa-eye"></i> معالج بـ OCR فقط
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Access Level Filter -->
+                        <div class="form-group">
+                            <label for="access_level">مستوى الوصول</label>
+                            <select class="form-control" id="access_level" name="access_level">
+                                <option value="">جميع المستويات</option>
+                                <option value="public" {{ 'selected' if request.args.get('access_level') == 'public' }}>عام</option>
+                                <option value="internal" {{ 'selected' if request.args.get('access_level') == 'internal' }}>داخلي</option>
+                                <option value="restricted" {{ 'selected' if request.args.get('access_level') == 'restricted' }}>مقيد</option>
+                            </select>
+                        </div>
+
+                        <!-- Sort Options -->
+                        <div class="form-group">
+                            <label for="sort">ترتيب النتائج</label>
+                            <select class="form-control" id="sort" name="sort">
+                                <option value="relevance" {{ 'selected' if request.args.get('sort', 'relevance') == 'relevance' }}>الأكثر صلة</option>
+                                <option value="date_desc" {{ 'selected' if request.args.get('sort') == 'date_desc' }}>الأحدث أولاً</option>
+                                <option value="date_asc" {{ 'selected' if request.args.get('sort') == 'date_asc' }}>الأقدم أولاً</option>
+                                <option value="title" {{ 'selected' if request.args.get('sort') == 'title' }}>العنوان (أ-ي)</option>
+                                <option value="size_desc" {{ 'selected' if request.args.get('sort') == 'size_desc' }}>الأكبر حجماً</option>
+                                <option value="size_asc" {{ 'selected' if request.args.get('sort') == 'size_asc' }}>الأصغر حجماً</option>
+                            </select>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <i class="fas fa-search"></i> بحث
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-block" onclick="clearSearch()">
+                                <i class="fas fa-times"></i> مسح الفلاتر
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div class="col-md-8">
+            {% if request.args.get('q') or request.args.get('category') or request.args.get('doc_type') %}
+            <!-- Search Summary -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1">
+                                <i class="fas fa-search"></i> 
+                                {% if results %}
+                                عُثر على {{ results|length }} نتيجة
+                                {% else %}
+                                لم يتم العثور على نتائج
+                                {% endif %}
+                            </h5>
+                            <p class="text-muted mb-0">
+                                {% if request.args.get('q') %}
+                                البحث عن: "{{ request.args.get('q') }}"
+                                {% endif %}
+                                {% if request.args.get('category') %}
+                                في الفئة: {{ categories|selectattr('id', 'equalto', request.args.get('category')|int)|first.name }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <small class="text-muted">وقت البحث: {{ search_time|round(3) if search_time else 0 }} ثانية</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            {% if results %}
+            <div class="search-results">
+                {% for document in results %}
+                <div class="card mb-3 search-result-card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h5 class="card-title">
+                                    <a href="{{ url_for('archive.view', id=document.id) }}" class="text-decoration-none">
+                                        {{ document.title|highlight_search(request.args.get('q', ''))|safe }}
+                                    </a>
+                                    {% if document.is_confidential %}
+                                    <span class="badge badge-danger ml-2">
+                                        <i class="fas fa-lock"></i> سري
+                                    </span>
+                                    {% endif %}
+                                </h5>
+                                
+                                <div class="mb-2">
+                                    <span class="badge badge-primary">{{ document.document_type }}</span>
+                                    {% if document.category %}
+                                    <span class="badge ml-1" style="background-color: {{ document.category.color }}">
+                                        {% if document.category.icon %}
+                                        <i class="{{ document.category.icon }}"></i>
+                                        {% endif %}
+                                        {{ document.category.name }}
+                                    </span>
+                                    {% endif %}
+                                    {% if document.access_level == 'public' %}
+                                    <span class="badge badge-success ml-1">عام</span>
+                                    {% elif document.access_level == 'internal' %}
+                                    <span class="badge badge-warning ml-1">داخلي</span>
+                                    {% else %}
+                                    <span class="badge badge-danger ml-1">مقيد</span>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if document.description %}
+                                <p class="card-text text-muted">
+                                    {{ document.description|highlight_search(request.args.get('q', ''))|safe|truncate(150) }}
+                                </p>
+                                {% endif %}
+                                
+                                <!-- OCR Content Preview -->
+                                {% if document.ocr_text and request.args.get('q') %}
+                                <div class="ocr-preview mt-2 p-2 bg-light rounded">
+                                    <small class="text-muted d-block mb-1">
+                                        <i class="fas fa-eye"></i> من المحتوى المستخرج:
+                                    </small>
+                                    <small class="text-dark">
+                                        {{ document.ocr_text|highlight_search(request.args.get('q', ''))|safe|truncate(200) }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Tags -->
+                                {% if document.tags %}
+                                <div class="mt-2">
+                                    {% for tag in document.tags.split(',')[:3] %}
+                                    <span class="badge badge-light mr-1">{{ tag.strip() }}</span>
+                                    {% endfor %}
+                                    {% if document.tags.split(',')|length > 3 %}
+                                    <span class="text-muted small">+{{ document.tags.split(',')|length - 3 }} أخرى</span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 text-right">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">الحجم: {{ (document.file_size / 1024 / 1024)|round(2) }} MB</small>
+                                    <small class="text-muted d-block">{{ document.created_at.strftime('%Y-%m-%d') }}</small>
+                                    {% if document.ocr_processed %}
+                                    <small class="text-success d-block">
+                                        <i class="fas fa-eye"></i> OCR {{ document.ocr_confidence }}%
+                                    </small>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="btn-group-vertical btn-group-sm">
+                                    <a href="{{ url_for('archive.view', id=document.id) }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-eye"></i> عرض
+                                    </a>
+                                    <a href="{{ url_for('archive.download', id=document.id) }}" class="btn btn-outline-success">
+                                        <i class="fas fa-download"></i> تحميل
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if pagination and pagination.pages > 1 %}
+            <nav aria-label="نتائج البحث">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('archive.search', **request.args, page=pagination.prev_num) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                    {% if page_num %}
+                    {% if page_num != pagination.page %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('archive.search', **request.args, page=page_num) }}">{{ page_num }}</a>
+                    </li>
+                    {% else %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_num }}</span>
+                    </li>
+                    {% endif %}
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('archive.search', **request.args, page=pagination.next_num) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            {% else %}
+            <!-- No Results -->
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-search fa-4x text-muted mb-3"></i>
+                    <h5 class="text-muted">لم يتم العثور على نتائج</h5>
+                    <p class="text-muted">جرب تعديل معايير البحث أو استخدام كلمات مختلفة</p>
+                    <button class="btn btn-outline-primary" onclick="clearSearch()">
+                        <i class="fas fa-times"></i> مسح الفلاتر
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% else %}
+            <!-- Initial State -->
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-search fa-4x text-primary mb-3"></i>
+                    <h5>البحث في الأرشيف الإلكتروني</h5>
+                    <p class="text-muted">استخدم النموذج على اليسار للبحث في المستندات والمحتوى</p>
+                    
+                    <!-- Quick Search Suggestions -->
+                    <div class="mt-4">
+                        <h6 class="text-muted">اقتراحات سريعة:</h6>
+                        <div class="d-flex justify-content-center flex-wrap">
+                            <button class="btn btn-outline-secondary btn-sm m-1" onclick="quickSearch('تقرير')">
+                                <i class="fas fa-file-alt"></i> التقارير
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm m-1" onclick="quickSearch('شهادة')">
+                                <i class="fas fa-certificate"></i> الشهادات
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm m-1" onclick="quickSearch('مراسلة')">
+                                <i class="fas fa-envelope"></i> المراسلات
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm m-1" onclick="quickSearch('عقد')">
+                                <i class="fas fa-handshake"></i> العقود
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.search-result-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent;
+}
+
+.search-result-card:hover {
+    border-left-color: #007bff;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.ocr-preview {
+    border-left: 3px solid #17a2b8;
+    font-family: 'Courier New', monospace;
+    direction: rtl;
+    text-align: right;
+}
+
+.highlight {
+    background-color: #fff3cd;
+    padding: 1px 3px;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+.sticky-top {
+    z-index: 1020;
+}
+
+.form-check-label {
+    font-weight: normal;
+}
+
+.btn-group-vertical .btn {
+    margin-bottom: 2px;
+}
+
+.pagination .page-link {
+    color: #007bff;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+@media (max-width: 768px) {
+    .sticky-top {
+        position: relative !important;
+        top: auto !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Clear search form
+function clearSearch() {
+    $('#searchForm')[0].reset();
+    window.location.href = '{{ url_for("archive.search") }}';
+}
+
+// Quick search function
+function quickSearch(term) {
+    $('#q').val(term);
+    $('#searchForm').submit();
+}
+
+// Auto-submit on filter change (with delay)
+let searchTimeout;
+$('#searchForm select, #searchForm input[type="checkbox"]').on('change', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(function() {
+        $('#searchForm').submit();
+    }, 500);
+});
+
+// Date validation
+$('input[name="date_from"], input[name="date_to"]').on('change', function() {
+    let dateFrom = $('input[name="date_from"]').val();
+    let dateTo = $('input[name="date_to"]').val();
+    
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+        alert('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+        $(this).val('');
+    }
+});
+
+// Search suggestions (simple autocomplete)
+$('#q').on('input', function() {
+    let query = $(this).val();
+    if (query.length > 2) {
+        // TODO: Implement AJAX autocomplete
+        console.log('Search suggestions for:', query);
+    }
+});
+
+// Keyboard shortcuts
+$(document).on('keydown', function(e) {
+    // Ctrl+F or Cmd+F to focus search
+    if ((e.ctrlKey || e.metaKey) && e.keyCode === 70) {
+        e.preventDefault();
+        $('#q').focus();
+    }
+    
+    // Enter to search
+    if (e.keyCode === 13 && $('#q').is(':focus')) {
+        $('#searchForm').submit();
+    }
+});
+
+// Initialize tooltips
+$(document).ready(function() {
+    $('[data-toggle="tooltip"]').tooltip();
+});
+
+// Highlight search terms in results
+function highlightSearchTerms() {
+    let searchTerm = $('#q').val();
+    if (searchTerm && searchTerm.length > 2) {
+        $('.search-result-card').each(function() {
+            let content = $(this).html();
+            let regex = new RegExp('(' + searchTerm + ')', 'gi');
+            content = content.replace(regex, '<span class="highlight">$1</span>');
+            $(this).html(content);
+        });
+    }
+}
+
+// Call highlight function on page load
+$(document).ready(function() {
+    highlightSearchTerms();
+});
+</script>
+{% endblock %}

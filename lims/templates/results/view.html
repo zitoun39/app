@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}عرض النتيجة - جودتي{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">لوحة التحكم</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('results.index') }}">النتائج</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('samples.view', id=result.sample.id) }}">{{ result.sample.sample_id }}</a></li>
+        <li class="breadcrumb-item active">{{ result.parameter.name }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Result Information -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-flask me-2"></i>
+                    تفاصيل النتيجة
+                </h5>
+                <div>
+                    {% if result.status == 'PENDING' %}
+                        <span class="badge bg-warning">معلقة</span>
+                    {% elif result.status == 'VALIDATED' %}
+                        <span class="badge bg-success">معتمدة</span>
+                    {% elif result.status == 'REJECTED' %}
+                        <span class="badge bg-danger">مرفوضة</span>
+                    {% endif %}
+                    
+                    {% if result.conformity == 'CONFORMING' %}
+                        <span class="badge bg-success ms-2">مطابق</span>
+                    {% elif result.conformity == 'NON_CONFORMING' %}
+                        <span class="badge bg-danger ms-2">غير مطابق</span>
+                    {% else %}
+                        <span class="badge bg-secondary ms-2">غير محدد</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>العينة:</strong></td>
+                                <td>
+                                    <a href="{{ url_for('samples.view', id=result.sample.id) }}" class="text-decoration-none">
+                                        {{ result.sample.sample_id }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>المعيار:</strong></td>
+                                <td>{{ result.parameter.name }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>القيمة:</strong></td>
+                                <td>
+                                    <span class="fs-5 fw-bold {% if result.conformity == 'NON_CONFORMING' %}text-danger{% endif %}">
+                                        {{ "%.3f"|format(result.value) }}
+                                    </span>
+                                    {% if result.parameter.unit %}
+                                        <small class="text-muted">{{ result.parameter.unit }}</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>الحدود المسموحة:</strong></td>
+                                <td>
+                                    {% if result.parameter.min_value is not none or result.parameter.max_value is not none %}
+                                        {% if result.parameter.min_value is not none %}
+                                            {{ "%.3f"|format(result.parameter.min_value) }}
+                                        {% else %}
+                                            -∞
+                                        {% endif %}
+                                        -
+                                        {% if result.parameter.max_value is not none %}
+                                            {{ "%.3f"|format(result.parameter.max_value) }}
+                                        {% else %}
+                                            +∞
+                                        {% endif %}
+                                        {% if result.parameter.unit %}
+                                            <small class="text-muted">{{ result.parameter.unit }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">غير محدد</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>المحلل:</strong></td>
+                                <td>{{ result.analyst.full_name if result.analyst else 'غير محدد' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>تاريخ التحليل:</strong></td>
+                                <td>{{ result.analysis_date.strftime('%Y-%m-%d') if result.analysis_date else 'غير محدد' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>وقت التحليل:</strong></td>
+                                <td>{{ result.analysis_time.strftime('%H:%M') if result.analysis_time else 'غير محدد' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>الجهاز المستخدم:</strong></td>
+                                <td>{{ result.equipment.name if result.equipment else 'غير محدد' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>طريقة التحليل:</strong></td>
+                                <td>{{ result.parameter.method or 'غير محدد' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>تاريخ الإنشاء:</strong></td>
+                                <td>{{ result.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                {% if result.notes %}
+                <div class="mt-3">
+                    <strong>ملاحظات:</strong>
+                    <p class="mt-2 p-3 bg-light rounded">{{ result.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Quality Control Information -->
+        {% if result.dilution_factor or result.detection_limit or result.uncertainty %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    معلومات ضمان الجودة
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if result.dilution_factor %}
+                    <div class="col-md-4">
+                        <strong>معامل التخفيف:</strong>
+                        <span class="d-block">{{ result.dilution_factor }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if result.detection_limit %}
+                    <div class="col-md-4">
+                        <strong>حد الكشف:</strong>
+                        <span class="d-block">
+                            {{ "%.6f"|format(result.detection_limit) }}
+                            {% if result.parameter.unit %}
+                                <small class="text-muted">{{ result.parameter.unit }}</small>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if result.uncertainty %}
+                    <div class="col-md-4">
+                        <strong>عدم اليقين:</strong>
+                        <span class="d-block">{{ "%.2f"|format(result.uncertainty) }}%</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                {% if result.quality_flags %}
+                <div class="mt-3">
+                    <strong>علامات الجودة:</strong>
+                    <div class="mt-2">
+                        {% for flag in result.quality_flags.split(',') if result.quality_flags %}
+                            {% if flag.strip() == 'outlier' %}
+                                <span class="badge bg-warning me-2">قيمة شاذة</span>
+                            {% elif flag.strip() == 'below_detection' %}
+                                <span class="badge bg-info me-2">أقل من حد الكشف</span>
+                            {% else %}
+                                <span class="badge bg-secondary me-2">{{ flag.strip() }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Replicates -->
+        {% if replicates and replicates|length > 0 %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-copy me-2"></i>
+                    التكرارات ({{ replicates|length }})
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>التكرار</th>
+                                <th>القيمة</th>
+                                <th>المطابقة</th>
+                                <th>المحلل</th>
+                                <th>التاريخ</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for replicate in replicates %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    {{ "%.3f"|format(replicate.value) }}
+                                    {% if result.parameter.unit %}
+                                        <small class="text-muted">{{ result.parameter.unit }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if replicate.conformity == 'CONFORMING' %}
+                                        <span class="badge bg-success">مطابق</span>
+                                    {% elif replicate.conformity == 'NON_CONFORMING' %}
+                                        <span class="badge bg-danger">غير مطابق</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">غير محدد</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ replicate.analyst.full_name if replicate.analyst else 'غير محدد' }}</td>
+                                <td>{{ replicate.analysis_date.strftime('%Y-%m-%d') if replicate.analysis_date else 'غير محدد' }}</td>
+                                <td>
+                                    {% if replicate.status == 'PENDING' %}
+                                        <span class="badge bg-warning">معلقة</span>
+                                    {% elif replicate.status == 'VALIDATED' %}
+                                        <span class="badge bg-success">معتمدة</span>
+                                    {% elif replicate.status == 'REJECTED' %}
+                                        <span class="badge bg-danger">مرفوضة</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if replicates|length > 1 %}
+                <div class="mt-3">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>المتوسط:</strong>
+                            <span class="d-block">{{ "%.3f"|format(replicates|map(attribute='value')|list|sum / replicates|length) }}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>الانحراف المعياري:</strong>
+                            <span class="d-block">{{ "%.3f"|format(calculate_std_dev(replicates|map(attribute='value')|list)) }}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>معامل التباين:</strong>
+                            <span class="d-block">{{ "%.2f"|format(calculate_cv(replicates|map(attribute='value')|list)) }}%</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>المدى:</strong>
+                            <span class="d-block">
+                                {{ "%.3f"|format(replicates|map(attribute='value')|max - replicates|map(attribute='value')|min) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Change History -->
+        {% if result.change_logs and result.change_logs|length > 0 %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    سجل التغييرات
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>المستخدم</th>
+                                <th>الحقل</th>
+                                <th>القيمة السابقة</th>
+                                <th>القيمة الجديدة</th>
+                                <th>السبب</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in result.change_logs %}
+                            <tr>
+                                <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ log.user.full_name }}</td>
+                                <td>{{ log.field_name }}</td>
+                                <td><code>{{ log.old_value or 'فارغ' }}</code></td>
+                                <td><code>{{ log.new_value or 'فارغ' }}</code></td>
+                                <td>{{ log.reason or 'غير محدد' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>
+                    الإجراءات
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if result.status == 'PENDING' and (current_user.role in ['ADMIN', 'SUPERVISOR'] or current_user.id == result.analyst_id) %}
+                        <a href="{{ url_for('results.edit_result', id=result.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit me-2"></i>
+                            تعديل النتيجة
+                        </a>
+                    {% endif %}
+                    
+                    {% if result.status == 'PENDING' and current_user.role in ['ADMIN', 'SUPERVISOR'] %}
+                        <form method="POST" action="{{ url_for('results.validate_result', id=result.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-success w-100" 
+                                    onclick="return confirm('هل أنت متأكد من اعتماد هذه النتيجة؟')">
+                                <i class="fas fa-check me-2"></i>
+                                اعتماد النتيجة
+                            </button>
+                        </form>
+                    {% endif %}
+                    
+                    {% if result.status == 'VALIDATED' and current_user.role in ['ADMIN', 'SUPERVISOR'] %}
+                        <form method="POST" action="{{ url_for('results.reject_result', id=result.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-danger w-100" 
+                                    onclick="return confirm('هل أنت متأكد من رفض هذه النتيجة؟')">
+                                <i class="fas fa-times me-2"></i>
+                                رفض النتيجة
+                            </button>
+                        </form>
+                    {% endif %}
+                    
+                    <a href="{{ url_for('results.add_replicate', result_id=result.id) }}" class="btn btn-outline-info">
+                        <i class="fas fa-copy me-2"></i>
+                        إضافة تكرار
+                    </a>
+                    
+                    <a href="{{ url_for('results.duplicate_result', id=result.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-clone me-2"></i>
+                        نسخ النتيجة
+                    </a>
+                    
+                    <button type="button" class="btn btn-outline-dark" onclick="printResult()">
+                        <i class="fas fa-print me-2"></i>
+                        طباعة النتيجة
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sample Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-vial me-2"></i>
+                    معلومات العينة
+                </h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <td><strong>رقم العينة:</strong></td>
+                        <td>
+                            <a href="{{ url_for('samples.view', id=result.sample.id) }}" class="text-decoration-none">
+                                {{ result.sample.sample_id }}
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>نوع العينة:</strong></td>
+                        <td>{{ result.sample.sample_type }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>الموقع:</strong></td>
+                        <td>{{ result.sample.location }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>تاريخ الجمع:</strong></td>
+                        <td>{{ result.sample.collection_date.strftime('%Y-%m-%d') if result.sample.collection_date else 'غير محدد' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>حالة العينة:</strong></td>
+                        <td>
+                            {% if result.sample.status == 'PENDING' %}
+                                <span class="badge bg-warning">معلقة</span>
+                            {% elif result.sample.status == 'IN_PROGRESS' %}
+                                <span class="badge bg-info">قيد التحليل</span>
+                            {% elif result.sample.status == 'COMPLETED' %}
+                                <span class="badge bg-success">مكتملة</span>
+                            {% elif result.sample.status == 'VALIDATED' %}
+                                <span class="badge bg-success">معتمدة</span>
+                            {% elif result.sample.status == 'CANCELLED' %}
+                                <span class="badge bg-danger">ملغية</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Parameter Information -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    معلومات المعيار
+                </h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <td><strong>اسم المعيار:</strong></td>
+                        <td>{{ result.parameter.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>الوحدة:</strong></td>
+                        <td>{{ result.parameter.unit or 'بدون وحدة' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>الحد الأدنى:</strong></td>
+                        <td>{{ result.parameter.min_value if result.parameter.min_value is not none else 'غير محدد' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>الحد الأعلى:</strong></td>
+                        <td>{{ result.parameter.max_value if result.parameter.max_value is not none else 'غير محدد' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>طريقة التحليل:</strong></td>
+                        <td>{{ result.parameter.method or 'غير محدد' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>الفئة:</strong></td>
+                        <td>{{ result.parameter.category or 'غير محدد' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function printResult() {
+    window.print();
+}
+
+// Print styles
+const printStyles = `
+    @media print {
+        .sidebar, .breadcrumb, .btn, .card-header .badge {
+            display: none !important;
+        }
+        .col-lg-8 {
+            width: 100% !important;
+        }
+        .card {
+            border: 1px solid #000 !important;
+            margin-bottom: 20px !important;
+        }
+        .card-header {
+            background-color: #f8f9fa !important;
+            border-bottom: 1px solid #000 !important;
+        }
+    }
+`;
+
+// Add print styles to head
+const styleSheet = document.createElement('style');
+styleSheet.textContent = printStyles;
+document.head.appendChild(styleSheet);
+</script>
+{% endblock %}

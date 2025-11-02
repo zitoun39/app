@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+
+{% block title %}العينات - جودتي{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">لوحة التحكم</a></li>
+        <li class="breadcrumb-item active">العينات</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">إدارة العينات</h1>
+    <a href="{{ url_for('samples.create') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>
+        إضافة عينة جديدة
+    </a>
+</div>
+
+<!-- Filters Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="fas fa-filter me-2"></i>
+            البحث والتصفية
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('samples.index') }}" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">البحث</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ request.args.get('search', '') }}" 
+                       placeholder="رقم العينة، الموقع، أو الملاحظات">
+            </div>
+            
+            <div class="col-md-2">
+                <label for="status" class="form-label">الحالة</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">جميع الحالات</option>
+                    {% for status in SampleStatus %}
+                    <option value="{{ status.value }}" 
+                            {{ 'selected' if request.args.get('status') == status.value }}>
+                        {{ status.value }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="sample_type" class="form-label">نوع العينة</label>
+                <select class="form-select" id="sample_type" name="sample_type">
+                    <option value="">جميع الأنواع</option>
+                    {% for sample_type in sample_types %}
+                    <option value="{{ sample_type.id }}" 
+                            {{ 'selected' if request.args.get('sample_type') == sample_type.id|string }}>
+                        {{ sample_type.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">من تاريخ</label>
+                <input type="date" class="form-control" id="date_from" name="date_from" 
+                       value="{{ request.args.get('date_from', '') }}">
+            </div>
+            
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">إلى تاريخ</label>
+                <input type="date" class="form-control" id="date_to" name="date_to" 
+                       value="{{ request.args.get('date_to', '') }}">
+            </div>
+            
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-search"></i>
+                </button>
+                <a href="{{ url_for('samples.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">إجمالي العينات</h6>
+                        <h3 class="mb-0">{{ pagination.total }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-vial fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">معلقة</h6>
+                        <h3 class="mb-0">{{ stats.pending }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">قيد التحليل</h6>
+                        <h3 class="mb-0">{{ stats.in_progress }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-flask fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">مكتملة</h6>
+                        <h3 class="mb-0">{{ stats.completed }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Samples Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">قائمة العينات</h6>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="exportSamples()">
+                <i class="fas fa-download me-1"></i>
+                تصدير
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="printSamples()">
+                <i class="fas fa-print me-1"></i>
+                طباعة
+            </button>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if samples %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>رقم العينة</th>
+                        <th>نوع العينة</th>
+                        <th>الموقع</th>
+                        <th>تاريخ الجمع</th>
+                        <th>تاريخ الاستلام</th>
+                        <th>الحالة</th>
+                        <th>المحلل</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sample in samples %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('samples.view', id=sample.id) }}" class="text-decoration-none fw-bold">
+                                {{ sample.sample_id }}
+                            </a>
+                        </td>
+                        <td>{{ sample.sample_type.name if sample.sample_type else '-' }}</td>
+                        <td>{{ sample.location or '-' }}</td>
+                        <td>{{ sample.collection_date.strftime('%Y/%m/%d') if sample.collection_date else '-' }}</td>
+                        <td>{{ sample.received_date.strftime('%Y/%m/%d') if sample.received_date else '-' }}</td>
+                        <td>
+                            <span class="status-badge status-{{ sample.status.value }}">
+                                {{ sample.status.value }}
+                            </span>
+                        </td>
+                        <td>{{ sample.analyst.full_name if sample.analyst else '-' }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('samples.view', id=sample.id) }}" 
+                                   class="btn btn-outline-primary" title="عرض">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                
+                                {% if sample.status.value == 'pending' and current_user.role in ['ADMIN', 'SUPERVISOR', 'ANALYST'] %}
+                                <a href="{{ url_for('samples.edit', id=sample.id) }}" 
+                                   class="btn btn-outline-warning" title="تعديل">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                                
+                                {% if sample.status.value == 'pending' and current_user.role in ['ADMIN', 'SUPERVISOR', 'ANALYST'] %}
+                                <form method="POST" action="{{ url_for('samples.start_analysis', id=sample.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('هل تريد بدء تحليل هذه العينة؟')">
+                                    <button type="submit" class="btn btn-outline-info" title="بدء التحليل">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                
+                                {% if sample.status.value == 'in_progress' and current_user.role in ['ADMIN', 'SUPERVISOR', 'ANALYST'] %}
+                                <form method="POST" action="{{ url_for('samples.complete_analysis', id=sample.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('هل تريد إكمال تحليل هذه العينة؟')">
+                                    <button type="submit" class="btn btn-outline-success" title="إكمال التحليل">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                
+                                <a href="{{ url_for('samples.print_label', id=sample.id) }}" 
+                                   class="btn btn-outline-secondary" title="طباعة الملصق" target="_blank">
+                                    <i class="fas fa-barcode"></i>
+                                </a>
+                                
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" 
+                                            data-bs-toggle="dropdown" title="المزيد">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('samples.duplicate_sample', id=sample.id) }}">
+                                                <i class="fas fa-copy me-2"></i>نسخ العينة
+                                            </a>
+                                        </li>
+                                        {% if sample.status.value != 'validated' and current_user.role in ['ADMIN', 'SUPERVISOR'] %}
+                                        <li>
+                                            <form method="POST" action="{{ url_for('samples.cancel_sample', id=sample.id) }}" 
+                                                  class="d-inline" onsubmit="return confirm('هل تريد إلغاء هذه العينة؟')">
+                                                <button type="submit" class="dropdown-item text-danger">
+                                                    <i class="fas fa-times me-2"></i>إلغاء العينة
+                                                </button>
+                                            </form>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+        <div class="card-footer">
+            <nav aria-label="Sample pagination">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('samples.index', page=pagination.prev_num, **request.args) }}">
+                            السابق
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('samples.index', page=page_num, **request.args) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('samples.index', page=pagination.next_num, **request.args) }}">
+                            التالي
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-vial fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">لا توجد عينات</h5>
+            <p class="text-muted">لم يتم العثور على عينات تطابق معايير البحث</p>
+            <a href="{{ url_for('samples.create') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>
+                إضافة عينة جديدة
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportSamples() {
+    // Create export URL with current filters
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', 'excel');
+    window.location.href = '{{ url_for("samples.index") }}?' + params.toString();
+}
+
+function printSamples() {
+    window.print();
+}
+
+// Auto-submit form on filter change
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.querySelector('form');
+    const selects = filterForm.querySelectorAll('select');
+    
+    selects.forEach(select => {
+        select.addEventListener('change', function() {
+            filterForm.submit();
+        });
+    });
+    
+    // Date range validation
+    const dateFrom = document.getElementById('date_from');
+    const dateTo = document.getElementById('date_to');
+    
+    dateFrom.addEventListener('change', function() {
+        if (dateTo.value && this.value > dateTo.value) {
+            alert('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+            this.value = '';
+        }
+    });
+    
+    dateTo.addEventListener('change', function() {
+        if (dateFrom.value && this.value < dateFrom.value) {
+            alert('تاريخ النهاية يجب أن يكون بعد تاريخ البداية');
+            this.value = '';
+        }
+    });
+});
+</script>
+{% endblock %}

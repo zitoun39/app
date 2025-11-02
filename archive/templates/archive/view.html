@@ -1,0 +1,479 @@
+{% extends "base.html" %}
+{% block title %}{{ document.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">لوحة التحكم</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('archive.index') }}">الأرشيف الإلكتروني</a></li>
+            <li class="breadcrumb-item active">{{ document.title }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>
+                <i class="fas fa-file-alt"></i> {{ document.title }}
+                {% if document.is_confidential %}
+                <span class="badge badge-danger ml-2">
+                    <i class="fas fa-lock"></i> سري
+                </span>
+                {% endif %}
+            </h2>
+            <p class="text-muted mb-0">{{ document.document_type }} - {{ document.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        </div>
+        <div>
+            <a href="{{ url_for('archive.download', id=document.id) }}" class="btn btn-primary">
+                <i class="fas fa-download"></i> تحميل
+            </a>
+            {% if current_user.has_role('admin') or document.uploaded_by == current_user.id %}
+            <a href="{{ url_for('archive.edit', id=document.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-edit"></i> تعديل
+            </a>
+            {% endif %}
+            <a href="{{ url_for('archive.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right"></i> العودة
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-md-8">
+            <!-- Document Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> معلومات المستند</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>العنوان:</strong></td>
+                                    <td>{{ document.title }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>النوع:</strong></td>
+                                    <td>
+                                        <span class="badge badge-primary">{{ document.document_type }}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>الفئة:</strong></td>
+                                    <td>
+                                        {% if document.category %}
+                                        <span class="badge" style="background-color: {{ document.category.color }}">
+                                            {% if document.category.icon %}
+                                            <i class="{{ document.category.icon }}"></i>
+                                            {% endif %}
+                                            {{ document.category.name }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">بدون فئة</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>اسم الملف:</strong></td>
+                                    <td><code>{{ document.file_name }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>حجم الملف:</strong></td>
+                                    <td>{{ (document.file_size / 1024 / 1024)|round(2) }} MB</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>مستوى الوصول:</strong></td>
+                                    <td>
+                                        {% if document.access_level == 'public' %}
+                                        <span class="badge badge-success">عام</span>
+                                        {% elif document.access_level == 'internal' %}
+                                        <span class="badge badge-warning">داخلي</span>
+                                        {% else %}
+                                        <span class="badge badge-danger">مقيد</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>تاريخ الرفع:</strong></td>
+                                    <td>{{ document.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>آخر تحديث:</strong></td>
+                                    <td>{{ document.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>رفع بواسطة:</strong></td>
+                                    <td>
+                                        {% if document.uploaded_by == current_user.id %}
+                                        أنت
+                                        {% else %}
+                                        مستخدم {{ document.uploaded_by }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>نوع MIME:</strong></td>
+                                    <td><code>{{ document.mime_type }}</code></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    {% if document.description %}
+                    <hr>
+                    <h6>الوصف:</h6>
+                    <p>{{ document.description }}</p>
+                    {% endif %}
+                    
+                    {% if document.tags %}
+                    <hr>
+                    <h6>العلامات:</h6>
+                    <div>
+                        {% for tag in document.tags.split(',') %}
+                        <span class="badge badge-light mr-1">{{ tag.strip() }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- OCR Results -->
+            {% if document.ocr_processed %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye"></i> النص المستخرج (OCR)
+                        <span class="badge badge-success ml-2">{{ document.ocr_confidence }}% ثقة</span>
+                    </h5>
+                    {% if current_user.has_role('admin') %}
+                    <button class="btn btn-sm btn-outline-primary" onclick="reprocessOCR()">
+                        <i class="fas fa-redo"></i> إعادة معالجة
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if document.ocr_text %}
+                    <div class="ocr-text" style="max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: 'Courier New', monospace; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">
+                        {{ document.ocr_text }}
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i> 
+                            تم استخراج {{ document.ocr_text|length }} حرف بلغة {{ document.ocr_language }}
+                        </small>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <p>لم يتم استخراج أي نص من هذا المستند</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-eye-slash"></i> OCR غير معالج</h5>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-robot fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">لم يتم معالجة هذا المستند بـ OCR بعد</p>
+                    {% if current_user.has_role('admin') %}
+                    <button class="btn btn-primary" onclick="processOCR()">
+                        <i class="fas fa-play"></i> بدء معالجة OCR
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Document Versions -->
+            {% if versions %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> إصدارات المستند</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>رقم الإصدار</th>
+                                    <th>الحجم</th>
+                                    <th>الوصف</th>
+                                    <th>المستخدم</th>
+                                    <th>التاريخ</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for version in versions %}
+                                <tr>
+                                    <td><span class="badge badge-secondary">{{ version.version_number }}</span></td>
+                                    <td>{{ (version.file_size / 1024 / 1024)|round(2) }} MB</td>
+                                    <td>{{ version.change_description or '-' }}</td>
+                                    <td>مستخدم {{ version.uploaded_by }}</td>
+                                    <td>{{ version.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>
+                                        <a href="#" class="btn btn-sm btn-outline-primary" title="تحميل">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-cogs"></i> الإجراءات</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('archive.download', id=document.id) }}" class="btn btn-primary btn-block">
+                            <i class="fas fa-download"></i> تحميل الملف
+                        </a>
+                        
+                        {% if current_user.has_role('admin') or document.uploaded_by == current_user.id %}
+                        <a href="{{ url_for('archive.edit', id=document.id) }}" class="btn btn-outline-secondary btn-block">
+                            <i class="fas fa-edit"></i> تعديل المعلومات
+                        </a>
+                        {% endif %}
+                        
+                        <button class="btn btn-outline-info btn-block" onclick="printDocument()">
+                            <i class="fas fa-print"></i> طباعة المعلومات
+                        </button>
+                        
+                        <button class="btn btn-outline-success btn-block" onclick="shareDocument()">
+                            <i class="fas fa-share"></i> مشاركة
+                        </button>
+                        
+                        {% if current_user.has_role('admin') or document.uploaded_by == current_user.id %}
+                        <hr>
+                        <button class="btn btn-outline-danger btn-block" onclick="confirmDelete()">
+                            <i class="fas fa-trash"></i> حذف المستند
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar"></i> إحصائيات سريعة</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-right">
+                                <h4 class="text-primary">{{ versions|length + 1 }}</h4>
+                                <small class="text-muted">الإصدارات</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success">{{ (document.file_size / 1024 / 1024)|round(1) }}</h4>
+                            <small class="text-muted">MB</small>
+                        </div>
+                    </div>
+                    {% if document.ocr_processed %}
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-right">
+                                <h4 class="text-info">{{ document.ocr_confidence }}%</h4>
+                                <small class="text-muted">ثقة OCR</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-warning">{{ (document.ocr_text|length / 1000)|round(1) }}K</h4>
+                            <small class="text-muted">أحرف</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Related Documents -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-link"></i> مستندات ذات صلة</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">سيتم عرض المستندات المشابهة هنا</p>
+                    <!-- TODO: Implement related documents logic -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تأكيد الحذف</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>هل أنت متأكد من حذف المستند "{{ document.title }}"؟</p>
+                <p class="text-danger"><strong>تحذير:</strong> سيتم حذف جميع الإصدارات والبيانات المرتبطة نهائياً.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                <form method="POST" action="{{ url_for('archive.delete', id=document.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">حذف نهائياً</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- OCR Processing Modal -->
+<div class="modal fade" id="ocrModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">معالجة OCR</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <i class="fas fa-robot fa-3x text-primary mb-3"></i>
+                    <h5>جاري معالجة المستند...</h5>
+                    <p class="text-muted">يرجى الانتظار بينما نستخرج النص من المستند</p>
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.ocr-text {
+    line-height: 1.6;
+    direction: rtl;
+    text-align: right;
+}
+
+.table-borderless td {
+    border: none;
+    padding: 0.5rem 0.75rem;
+}
+
+.table-borderless td:first-child {
+    width: 30%;
+    font-weight: 500;
+}
+
+@media print {
+    .btn, .card-header, nav, .modal {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete() {
+    $('#deleteModal').modal('show');
+}
+
+function printDocument() {
+    window.print();
+}
+
+function shareDocument() {
+    const url = window.location.href;
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ document.title }}',
+            url: url
+        });
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(url).then(function() {
+            alert('تم نسخ الرابط إلى الحافظة');
+        });
+    }
+}
+
+function processOCR() {
+    $('#ocrModal').modal('show');
+    
+    fetch(`/archive/api/reprocess-ocr/{{ document.id }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            language: '{{ document.ocr_language or "ara" }}'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        $('#ocrModal').modal('hide');
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('خطأ في معالجة OCR: ' + data.error);
+        }
+    })
+    .catch(error => {
+        $('#ocrModal').modal('hide');
+        alert('خطأ في الاتصال: ' + error);
+    });
+}
+
+function reprocessOCR() {
+    if (confirm('هل تريد إعادة معالجة OCR لهذا المستند؟')) {
+        processOCR();
+    }
+}
+
+// Auto-refresh OCR status if processing
+{% if not document.ocr_processed %}
+setInterval(function() {
+    fetch(`/archive/api/ocr-status/{{ document.id }}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.processed) {
+            location.reload();
+        }
+    });
+}, 5000);
+{% endif %}
+</script>
+{% endblock %}

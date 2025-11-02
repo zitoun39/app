@@ -1,0 +1,587 @@
+{% extends "base.html" %}
+{% block title %}إدارة فئات الأرشيف{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">لوحة التحكم</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('archive.index') }}">الأرشيف الإلكتروني</a></li>
+            <li class="breadcrumb-item active">إدارة الفئات</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-folder-open"></i> إدارة فئات الأرشيف</h2>
+            <p class="text-muted mb-0">تنظيم وإدارة فئات المستندات</p>
+        </div>
+        <div>
+            <button class="btn btn-primary" data-toggle="modal" data-target="#addCategoryModal">
+                <i class="fas fa-plus"></i> إضافة فئة جديدة
+            </button>
+            <a href="{{ url_for('archive.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right"></i> العودة للأرشيف
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ categories|length }}</h4>
+                            <p class="mb-0">إجمالي الفئات</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-folder fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ categories|selectattr('parent_id', 'none')|list|length }}</h4>
+                            <p class="mb-0">الفئات الرئيسية</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-sitemap fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ categories|selectattr('parent_id', 'defined')|list|length }}</h4>
+                            <p class="mb-0">الفئات الفرعية</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-layer-group fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ categories|sum(attribute='document_count') }}</h4>
+                            <p class="mb-0">إجمالي المستندات</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-file-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Categories Tree -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-tree"></i> هيكل الفئات
+                <small class="text-muted ml-2">(اسحب وأفلت لإعادة الترتيب)</small>
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if categories %}
+            <div id="categoryTree" class="category-tree">
+                {% for category in categories|selectattr('parent_id', 'none') %}
+                    {{ render_category_tree(category, categories) }}
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">لا توجد فئات</h5>
+                <p class="text-muted">ابدأ بإنشاء فئة جديدة لتنظيم مستنداتك</p>
+                <button class="btn btn-primary" data-toggle="modal" data-target="#addCategoryModal">
+                    <i class="fas fa-plus"></i> إضافة فئة جديدة
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">إضافة فئة جديدة</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form method="POST" action="{{ url_for('archive.add_category') }}" id="addCategoryForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="name" class="required">اسم الفئة</label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       required maxlength="100" placeholder="مثال: التقارير المالية">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="parent_id">الفئة الأب</label>
+                                <select class="form-control" id="parent_id" name="parent_id">
+                                    <option value="">فئة رئيسية</option>
+                                    {% for category in categories|selectattr('parent_id', 'none') %}
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">الوصف</label>
+                        <textarea class="form-control" id="description" name="description" 
+                                  rows="3" maxlength="500" placeholder="وصف مختصر للفئة وما تحتويه من مستندات"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="color">اللون</label>
+                                <div class="color-picker-container">
+                                    <input type="color" class="form-control color-picker" id="color" name="color" value="#007bff">
+                                    <div class="color-presets mt-2">
+                                        <span class="color-preset" data-color="#007bff" style="background-color: #007bff"></span>
+                                        <span class="color-preset" data-color="#28a745" style="background-color: #28a745"></span>
+                                        <span class="color-preset" data-color="#dc3545" style="background-color: #dc3545"></span>
+                                        <span class="color-preset" data-color="#ffc107" style="background-color: #ffc107"></span>
+                                        <span class="color-preset" data-color="#17a2b8" style="background-color: #17a2b8"></span>
+                                        <span class="color-preset" data-color="#6f42c1" style="background-color: #6f42c1"></span>
+                                        <span class="color-preset" data-color="#fd7e14" style="background-color: #fd7e14"></span>
+                                        <span class="color-preset" data-color="#20c997" style="background-color: #20c997"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="icon">الأيقونة</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">
+                                            <i id="iconPreview" class="fas fa-folder"></i>
+                                        </span>
+                                    </div>
+                                    <input type="text" class="form-control" id="icon" name="icon" 
+                                           value="fas fa-folder" placeholder="fas fa-folder">
+                                </div>
+                                <small class="form-text text-muted">استخدم أيقونات Font Awesome</small>
+                                <div class="icon-presets mt-2">
+                                    <span class="icon-preset" data-icon="fas fa-folder"><i class="fas fa-folder"></i></span>
+                                    <span class="icon-preset" data-icon="fas fa-file-alt"><i class="fas fa-file-alt"></i></span>
+                                    <span class="icon-preset" data-icon="fas fa-chart-bar"><i class="fas fa-chart-bar"></i></span>
+                                    <span class="icon-preset" data-icon="fas fa-cog"><i class="fas fa-cog"></i></span>
+                                    <span class="icon-preset" data-icon="fas fa-users"><i class="fas fa-users"></i></span>
+                                    <span class="icon-preset" data-icon="fas fa-building"><i class="fas fa-building"></i></span>
+                                    <span class="icon-preset" data-icon="fas fa-money-bill"><i class="fas fa-money-bill"></i></span>
+                                    <span class="icon-preset" data-icon="fas fa-clipboard-list"><i class="fas fa-clipboard-list"></i></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>معاينة الفئة</label>
+                        <div class="category-preview p-3 border rounded">
+                            <span class="badge" id="categoryPreview" style="background-color: #007bff">
+                                <i class="fas fa-folder"></i> <span id="previewName">اسم الفئة</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> حفظ الفئة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Category Modal -->
+<div class="modal fade" id="editCategoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تعديل الفئة</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form method="POST" id="editCategoryForm">
+                <div class="modal-body">
+                    <!-- Same form fields as add modal -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_name" class="required">اسم الفئة</label>
+                                <input type="text" class="form-control" id="edit_name" name="name" required maxlength="100">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_parent_id">الفئة الأب</label>
+                                <select class="form-control" id="edit_parent_id" name="parent_id">
+                                    <option value="">فئة رئيسية</option>
+                                    {% for category in categories|selectattr('parent_id', 'none') %}
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit_description">الوصف</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="3" maxlength="500"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_color">اللون</label>
+                                <input type="color" class="form-control color-picker" id="edit_color" name="color">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_icon">الأيقونة</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">
+                                            <i id="editIconPreview" class="fas fa-folder"></i>
+                                        </span>
+                                    </div>
+                                    <input type="text" class="form-control" id="edit_icon" name="icon">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> حفظ التغييرات
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تأكيد الحذف</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>هل أنت متأكد من حذف الفئة "<span id="deleteCategoryName"></span>"؟</p>
+                <div id="deleteWarning" class="alert alert-warning" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>تحذير:</strong> هذه الفئة تحتوي على <span id="documentCount"></span> مستند. 
+                    سيتم نقل هذه المستندات إلى "بدون فئة".
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                <form method="POST" id="deleteCategoryForm" style="display: inline;">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> حذف نهائياً
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% macro render_category_tree(category, all_categories) %}
+<div class="category-item" data-id="{{ category.id }}">
+    <div class="category-header d-flex justify-content-between align-items-center p-3 mb-2 border rounded">
+        <div class="category-info d-flex align-items-center">
+            <span class="drag-handle mr-2">
+                <i class="fas fa-grip-vertical text-muted"></i>
+            </span>
+            <span class="badge mr-2" style="background-color: {{ category.color }}">
+                {% if category.icon %}
+                <i class="{{ category.icon }}"></i>
+                {% endif %}
+                {{ category.name }}
+            </span>
+            <span class="text-muted small">{{ category.document_count }} مستند</span>
+            {% if category.description %}
+            <span class="text-muted small ml-2">- {{ category.description[:50] }}{% if category.description|length > 50 %}...{% endif %}</span>
+            {% endif %}
+        </div>
+        <div class="category-actions">
+            <button class="btn btn-sm btn-outline-primary" onclick="editCategory({{ category.id }})" title="تعديل">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory({{ category.id }}, '{{ category.name }}', {{ category.document_count }})" title="حذف">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Subcategories -->
+    {% set subcategories = all_categories|selectattr('parent_id', 'equalto', category.id)|list %}
+    {% if subcategories %}
+    <div class="subcategories ml-4">
+        {% for subcategory in subcategories %}
+            {{ render_category_tree(subcategory, all_categories) }}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% block extra_css %}
+<style>
+.required::after {
+    content: " *";
+    color: #dc3545;
+}
+
+.category-tree {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.category-item {
+    margin-bottom: 10px;
+}
+
+.category-header {
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.category-header:hover {
+    background-color: #e9ecef;
+    transform: translateX(-5px);
+}
+
+.drag-handle {
+    cursor: move;
+}
+
+.drag-handle:hover {
+    color: #007bff !important;
+}
+
+.subcategories {
+    border-left: 2px solid #dee2e6;
+    padding-left: 15px;
+}
+
+.color-picker {
+    height: 40px;
+    padding: 2px;
+    border-radius: 5px;
+}
+
+.color-presets {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.color-preset {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.color-preset:hover {
+    border-color: #333;
+    transform: scale(1.1);
+}
+
+.color-preset.active {
+    border-color: #007bff;
+    transform: scale(1.2);
+}
+
+.icon-presets {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.icon-preset {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.icon-preset:hover {
+    background-color: #007bff;
+    color: white;
+    transform: scale(1.1);
+}
+
+.icon-preset.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.category-preview {
+    background-color: #f8f9fa;
+}
+
+.sortable-ghost {
+    opacity: 0.5;
+}
+
+.sortable-chosen {
+    background-color: #e3f2fd;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+// Initialize sortable for drag and drop
+if (document.getElementById('categoryTree')) {
+    new Sortable(document.getElementById('categoryTree'), {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd: function(evt) {
+            // TODO: Send AJAX request to update category order
+            console.log('Category moved from', evt.oldIndex, 'to', evt.newIndex);
+        }
+    });
+}
+
+// Color picker functionality
+$('.color-preset').on('click', function() {
+    let color = $(this).data('color');
+    let colorPicker = $(this).closest('.color-picker-container').find('.color-picker');
+    colorPicker.val(color);
+    updatePreview();
+    
+    // Update active state
+    $(this).siblings().removeClass('active');
+    $(this).addClass('active');
+});
+
+// Icon picker functionality
+$('.icon-preset').on('click', function() {
+    let icon = $(this).data('icon');
+    let iconInput = $(this).closest('.form-group').find('input[name="icon"]');
+    iconInput.val(icon);
+    updateIconPreview(iconInput[0]);
+    
+    // Update active state
+    $(this).siblings().removeClass('active');
+    $(this).addClass('active');
+});
+
+// Icon input change handler
+$('input[name="icon"]').on('input', function() {
+    updateIconPreview(this);
+});
+
+function updateIconPreview(input) {
+    let iconClass = $(input).val();
+    let previewId = $(input).attr('id') === 'edit_icon' ? 'editIconPreview' : 'iconPreview';
+    $('#' + previewId).attr('class', iconClass || 'fas fa-folder');
+    updatePreview();
+}
+
+// Live preview update
+$('#name, #color, #icon').on('input change', updatePreview);
+
+function updatePreview() {
+    let name = $('#name').val() || 'اسم الفئة';
+    let color = $('#color').val();
+    let icon = $('#icon').val() || 'fas fa-folder';
+    
+    $('#previewName').text(name);
+    $('#categoryPreview').css('background-color', color);
+    $('#categoryPreview i').attr('class', icon);
+}
+
+// Form validation
+$('#addCategoryForm').on('submit', function(e) {
+    let name = $('#name').val().trim();
+    if (!name) {
+        e.preventDefault();
+        alert('يرجى إدخال اسم الفئة');
+        $('#name').focus();
+    }
+});
+
+// Edit category function
+function editCategory(categoryId) {
+    // TODO: Load category data via AJAX and populate edit form
+    $('#editCategoryModal').modal('show');
+}
+
+// Delete category function
+function deleteCategory(categoryId, categoryName, documentCount) {
+    $('#deleteCategoryName').text(categoryName);
+    $('#documentCount').text(documentCount);
+    
+    if (documentCount > 0) {
+        $('#deleteWarning').show();
+    } else {
+        $('#deleteWarning').hide();
+    }
+    
+    $('#deleteCategoryForm').attr('action', '/archive/categories/' + categoryId + '/delete');
+    $('#deleteCategoryModal').modal('show');
+}
+
+// Initialize preview on page load
+$(document).ready(function() {
+    updatePreview();
+});
+</script>
+{% endblock %}

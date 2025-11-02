@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة التحكم - جودتي{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">لوحة التحكم</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">لوحة التحكم</h1>
+    <div class="text-muted">
+        <i class="fas fa-calendar-alt me-1"></i>
+        {{ moment().format('YYYY/MM/DD - HH:mm') }}
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <!-- Samples Statistics -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-right-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            إجمالي العينات
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_samples }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-vial fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pending Samples -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-right-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            عينات معلقة
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.pending_samples }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-clock fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Completed Results -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-right-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            نتائج مكتملة
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.completed_results }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Active Users -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-right-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            المستخدمون النشطون
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.active_users }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <!-- Sample Trends Chart -->
+    <div class="col-xl-8 col-lg-7">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">اتجاهات العينات (آخر 30 يوم)</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-area">
+                    <canvas id="sampleTrendsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sample Types Distribution -->
+    <div class="col-xl-4 col-lg-5">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">توزيع أنواع العينات</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-pie pt-4 pb-2">
+                    <canvas id="sampleTypesChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities and Alerts -->
+<div class="row">
+    <!-- Recent Samples -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">العينات الحديثة</h6>
+            </div>
+            <div class="card-body">
+                {% if recent_samples %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>رقم العينة</th>
+                                <th>النوع</th>
+                                <th>الحالة</th>
+                                <th>التاريخ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sample in recent_samples %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('samples.view', id=sample.id) }}" class="text-decoration-none">
+                                        {{ sample.sample_id }}
+                                    </a>
+                                </td>
+                                <td>{{ sample.sample_type.name if sample.sample_type else '-' }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ sample.status.value }}">
+                                        {{ sample.status.value }}
+                                    </span>
+                                </td>
+                                <td>{{ sample.created_at.strftime('%Y/%m/%d') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">لا توجد عينات حديثة</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Alerts -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">تنبيهات النظام</h6>
+            </div>
+            <div class="card-body">
+                <div id="systemAlerts">
+                    <!-- Alerts will be loaded via AJAX -->
+                    <div class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">جاري التحميل...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">إجراءات سريعة</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('samples.create') }}" class="btn btn-primary btn-block">
+                            <i class="fas fa-plus me-2"></i>
+                            إضافة عينة جديدة
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('results.index') }}" class="btn btn-info btn-block">
+                            <i class="fas fa-chart-line me-2"></i>
+                            عرض النتائج
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('reports.index') }}" class="btn btn-success btn-block">
+                            <i class="fas fa-file-pdf me-2"></i>
+                            إنشاء تقرير
+                        </a>
+                    </div>
+                    {% if current_user.role in ['ADMIN', 'SUPERVISOR'] %}
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('dashboard.analytics') }}" class="btn btn-warning btn-block">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            التحليلات المتقدمة
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load dashboard data and charts
+document.addEventListener('DOMContentLoaded', function() {
+    loadSampleTrendsChart();
+    loadSampleTypesChart();
+    loadSystemAlerts();
+    
+    // Refresh data every 5 minutes
+    setInterval(function() {
+        loadSystemAlerts();
+    }, 300000);
+});
+
+function loadSampleTrendsChart() {
+    fetch('{{ url_for("dashboard.api_sample_trends") }}')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('sampleTrendsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'عدد العينات',
+                        data: data.values,
+                        borderColor: '#2c5aa0',
+                        backgroundColor: 'rgba(44, 90, 160, 0.1)',
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => console.error('Error loading sample trends:', error));
+}
+
+function loadSampleTypesChart() {
+    fetch('{{ url_for("dashboard.api_sample_types") }}')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('sampleTypesChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.values,
+                        backgroundColor: [
+                            '#2c5aa0',
+                            '#28a745',
+                            '#ffc107',
+                            '#dc3545',
+                            '#17a2b8'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => console.error('Error loading sample types:', error));
+}
+
+function loadSystemAlerts() {
+    fetch('{{ url_for("dashboard.api_alerts") }}')
+        .then(response => response.json())
+        .then(data => {
+            const alertsContainer = document.getElementById('systemAlerts');
+            
+            if (data.alerts && data.alerts.length > 0) {
+                let alertsHtml = '';
+                data.alerts.forEach(alert => {
+                    alertsHtml += `
+                        <div class="alert alert-${alert.type} alert-sm mb-2">
+                            <i class="fas fa-${alert.icon} me-2"></i>
+                            <strong>${alert.title}:</strong> ${alert.message}
+                        </div>
+                    `;
+                });
+                alertsContainer.innerHTML = alertsHtml;
+            } else {
+                alertsContainer.innerHTML = '<p class="text-muted text-center py-3">لا توجد تنبيهات</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading alerts:', error);
+            document.getElementById('systemAlerts').innerHTML = 
+                '<p class="text-danger text-center py-3">خطأ في تحميل التنبيهات</p>';
+        });
+}
+</script>
+{% endblock %}

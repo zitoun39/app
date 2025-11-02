@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+{% block title %}رفع مستند جديد{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">لوحة التحكم</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('archive.index') }}">الأرشيف الإلكتروني</a></li>
+            <li class="breadcrumb-item active">رفع مستند جديد</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-upload"></i> رفع مستند جديد</h2>
+        <a href="{{ url_for('archive.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-right"></i> العودة للأرشيف
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file-upload"></i> معلومات المستند</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        <!-- File Upload -->
+                        <div class="form-group">
+                            <label for="file" class="required">الملف</label>
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" id="file" name="file" 
+                                       accept=".pdf,.png,.jpg,.jpeg,.tiff,.bmp,.doc,.docx,.txt" required>
+                                <label class="custom-file-label" for="file">اختر الملف...</label>
+                            </div>
+                            <small class="form-text text-muted">
+                                الملفات المدعومة: PDF, PNG, JPG, JPEG, TIFF, BMP, DOC, DOCX, TXT
+                                (الحد الأقصى: 50 MB)
+                            </small>
+                        </div>
+
+                        <!-- File Preview -->
+                        <div id="filePreview" class="mb-3" style="display: none;">
+                            <div class="alert alert-info">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file fa-2x mr-3"></i>
+                                    <div>
+                                        <strong id="fileName"></strong><br>
+                                        <small id="fileInfo"></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Document Information -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="title" class="required">عنوان المستند</label>
+                                    <input type="text" class="form-control" id="title" name="title" 
+                                           placeholder="أدخل عنوان المستند" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="document_type" class="required">نوع المستند</label>
+                                    <select class="form-control" id="document_type" name="document_type" required>
+                                        <option value="">اختر نوع المستند</option>
+                                        <option value="report">تقرير</option>
+                                        <option value="certificate">شهادة</option>
+                                        <option value="invoice">فاتورة</option>
+                                        <option value="contract">عقد</option>
+                                        <option value="letter">خطاب</option>
+                                        <option value="form">نموذج</option>
+                                        <option value="manual">دليل</option>
+                                        <option value="other">أخرى</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">الوصف</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" 
+                                      placeholder="وصف مختصر للمستند (اختياري)"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="category_id">الفئة</label>
+                                    <select class="form-control" id="category_id" name="category_id">
+                                        <option value="">بدون فئة</option>
+                                        {% for category in categories %}
+                                        <option value="{{ category.id }}">
+                                            {% if category.parent %}
+                                            {{ category.parent.name }} - 
+                                            {% endif %}
+                                            {{ category.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="tags">العلامات</label>
+                                    <input type="text" class="form-control" id="tags" name="tags" 
+                                           placeholder="علامات مفصولة بفواصل">
+                                    <small class="form-text text-muted">
+                                        مثال: مختبر، تحليل، نتائج
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Security Settings -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fas fa-shield-alt"></i> إعدادات الأمان</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="access_level">مستوى الوصول</label>
+                                            <select class="form-control" id="access_level" name="access_level">
+                                                <option value="public">عام</option>
+                                                <option value="internal">داخلي</option>
+                                                <option value="restricted">مقيد</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <div class="form-check mt-4">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       id="is_confidential" name="is_confidential">
+                                                <label class="form-check-label" for="is_confidential">
+                                                    <i class="fas fa-lock text-danger"></i> مستند سري
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- OCR Settings -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fas fa-eye"></i> إعدادات OCR</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label for="ocr_language">لغة OCR</label>
+                                    <select class="form-control" id="ocr_language" name="ocr_language">
+                                        <option value="ara">العربية</option>
+                                        <option value="eng">الإنجليزية</option>
+                                        <option value="ara+eng">العربية + الإنجليزية</option>
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        سيتم استخراج النص من الصور وملفات PDF تلقائياً
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-upload"></i> رفع المستند
+                            </button>
+                            <a href="{{ url_for('archive.index') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Sidebar -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> معلومات مفيدة</h6>
+                </div>
+                <div class="card-body">
+                    <h6>الملفات المدعومة:</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-file-pdf text-danger"></i> PDF</li>
+                        <li><i class="fas fa-file-image text-primary"></i> PNG, JPG, JPEG, TIFF, BMP</li>
+                        <li><i class="fas fa-file-word text-info"></i> DOC, DOCX</li>
+                        <li><i class="fas fa-file-alt text-secondary"></i> TXT</li>
+                    </ul>
+
+                    <hr>
+
+                    <h6>ميزة OCR:</h6>
+                    <p class="small text-muted">
+                        سيتم استخراج النص من الصور وملفات PDF تلقائياً لتسهيل البحث.
+                    </p>
+
+                    <hr>
+
+                    <h6>مستويات الوصول:</h6>
+                    <ul class="list-unstyled small">
+                        <li><strong>عام:</strong> يمكن لجميع المستخدمين الوصول</li>
+                        <li><strong>داخلي:</strong> المستخدمين المسجلين فقط</li>
+                        <li><strong>مقيد:</strong> المدراء والمالك فقط</li>
+                    </ul>
+
+                    <hr>
+
+                    <h6>نصائح:</h6>
+                    <ul class="list-unstyled small text-muted">
+                        <li>• استخدم عناوين وصفية واضحة</li>
+                        <li>• أضف علامات لتسهيل البحث</li>
+                        <li>• اختر الفئة المناسبة</li>
+                        <li>• تأكد من جودة الصورة لـ OCR أفضل</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Upload Progress -->
+            <div class="card mt-3" id="progressCard" style="display: none;">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-spinner fa-spin"></i> جاري الرفع...</h6>
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-2">
+                        <div class="progress-bar" role="progressbar" style="width: 0%" id="uploadProgress"></div>
+                    </div>
+                    <small class="text-muted" id="progressText">جاري تحضير الملف...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // File input change handler
+    $('#file').on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            // Update custom file label
+            $(this).next('.custom-file-label').text(file.name);
+            
+            // Show file preview
+            $('#fileName').text(file.name);
+            $('#fileInfo').text(`الحجم: ${(file.size / 1024 / 1024).toFixed(2)} MB - النوع: ${file.type}`);
+            $('#filePreview').show();
+            
+            // Auto-fill title if empty
+            if (!$('#title').val()) {
+                const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+                $('#title').val(nameWithoutExt);
+            }
+        } else {
+            $('#filePreview').hide();
+        }
+    });
+    
+    // Form submission with progress
+    $('#uploadForm').on('submit', function(e) {
+        const file = $('#file')[0].files[0];
+        if (!file) {
+            alert('يرجى اختيار ملف');
+            e.preventDefault();
+            return;
+        }
+        
+        // Check file size (50MB limit)
+        if (file.size > 50 * 1024 * 1024) {
+            alert('حجم الملف كبير جداً. الحد الأقصى 50 MB');
+            e.preventDefault();
+            return;
+        }
+        
+        // Show progress
+        $('#progressCard').show();
+        $('#submitBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> جاري الرفع...');
+        
+        // Simulate progress (since we can't track actual upload progress easily)
+        let progress = 0;
+        const progressInterval = setInterval(function() {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            
+            $('#uploadProgress').css('width', progress + '%');
+            
+            if (progress < 30) {
+                $('#progressText').text('جاري رفع الملف...');
+            } else if (progress < 60) {
+                $('#progressText').text('جاري معالجة الملف...');
+            } else if (progress < 90) {
+                $('#progressText').text('جاري استخراج النص (OCR)...');
+            }
+        }, 500);
+        
+        // Clear interval after form submission
+        setTimeout(function() {
+            clearInterval(progressInterval);
+        }, 10000);
+    });
+    
+    // Auto-generate tags based on title and type
+    $('#title, #document_type').on('change', function() {
+        if (!$('#tags').val()) {
+            const title = $('#title').val().toLowerCase();
+            const type = $('#document_type').val();
+            let suggestedTags = [];
+            
+            if (type) {
+                suggestedTags.push(type);
+            }
+            
+            // Add some smart suggestions based on title
+            if (title.includes('تحليل') || title.includes('نتيجة')) {
+                suggestedTags.push('تحليل');
+            }
+            if (title.includes('مختبر')) {
+                suggestedTags.push('مختبر');
+            }
+            if (title.includes('تقرير')) {
+                suggestedTags.push('تقرير');
+            }
+            
+            if (suggestedTags.length > 0) {
+                $('#tags').val(suggestedTags.join(', '));
+            }
+        }
+    });
+    
+    // Confidential checkbox handler
+    $('#is_confidential').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('#access_level').val('restricted');
+        }
+    });
+    
+    // Access level change handler
+    $('#access_level').on('change', function() {
+        if ($(this).val() !== 'restricted') {
+            $('#is_confidential').prop('checked', false);
+        }
+    });
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.required::after {
+    content: " *";
+    color: red;
+}
+
+.custom-file-label::after {
+    content: "تصفح";
+}
+
+#filePreview {
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.progress {
+    height: 8px;
+}
+</style>
+{% endblock %}
